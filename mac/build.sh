@@ -1,5 +1,4 @@
 #!/bin/bash
-# Build Betacom.app từ mã nguồn. Cách dùng: bash build.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -23,7 +22,7 @@ echo "==> Biên dịch cho máy Intel"
 swiftc -O -target "x86_64-apple-macos$MIN_OS" -o build/betacom-x86_64 "${SOURCES[@]}"
 
 echo "==> Biên dịch cho chip Apple (M1, M2…)"
-if swiftc -O -target "arm64-apple-macos$MIN_OS" -o build/betacom-arm64 "${SOURCES[@]}" 2>/dev/null; then
+if swiftc -O -target "arm64-apple-macos$MIN_OS" -o build/betacom-arm64 "${SOURCES[@]}"; then
     lipo -create build/betacom-x86_64 build/betacom-arm64 -output "$APP/Contents/MacOS/Betacom"
     echo "    Đã tạo bản chạy được trên cả Intel và chip Apple"
 else
@@ -43,8 +42,7 @@ for size in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
-# Ký "ad-hoc" để macOS cho chạy (không cần tài khoản Apple Developer).
-codesign --force --sign - "$APP" >/dev/null 2>&1 || true
+codesign --force --sign - "$APP"
 
 ditto -c -k --keepParent "$APP" build/Betacom-mac.zip
 rm -rf "$ICONSET" build/betacom-x86_64 build/betacom-arm64

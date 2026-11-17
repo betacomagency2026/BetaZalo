@@ -1,9 +1,7 @@
 import AppKit
 import UniformTypeIdentifiers
 
-/// Các hộp thoại đơn giản dùng NSAlert.
 enum Prompt {
-    /// Hỏi một dòng chữ (ví dụ tên tài khoản). Trả về nil nếu bấm Hủy hoặc để trống.
     static func text(title: String, message: String, value: String, ok: String) -> String? {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()

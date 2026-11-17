@@ -4,7 +4,6 @@ struct Account: Codable, Equatable {
     var id: String
     var name: String
     var color: Int
-    /// Mở lại tài khoản này khi Betacom khởi động (tự bật khi mở, tự tắt khi bấm "Tắt").
     var reopen: Bool
 
     init(id: String, name: String, color: Int, reopen: Bool = true) {
@@ -23,12 +22,12 @@ struct Account: Codable, Equatable {
     }
 }
 
-/// Lưu danh sách tài khoản và cài đặt trong ~/Library/Application Support/Betacom/config.json
 final class Store {
     static let shared = Store()
 
     let root: URL
     private(set) var accounts: [Account] = []
+    private(set) var readOnly = false
     var zaloPath: String? {
         didSet { save() }
     }
@@ -38,9 +37,8 @@ final class Store {
         var zaloPath: String?
     }
 
-    private var configURL: URL { root.appendingPathComponent("config.json") }
+    var configURL: URL { root.appendingPathComponent("config.json") }
 
-    /// ~/Library/Application Support/Betacom
     static let rootURL: URL = {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let url = support.appendingPathComponent("Betacom", isDirectory: true)
@@ -61,23 +59,43 @@ final class Store {
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: configURL) else { return }
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: configURL.path) else { return }
+        let data: Data
+        do {
+            data = try Data(contentsOf: configURL)
+        } catch {
+            readOnly = true
+            writeLog("Không đọc được config.json, tạm không ghi cấu hình: \(error)")
+            return
+        }
         do {
             let file = try JSONDecoder().decode(ConfigFile.self, from: data)
             accounts = file.accounts
             zaloPath = file.zaloPath
         } catch {
-            writeLog("config.json lỗi, bắt đầu với cấu hình trống: \(error)")
-            try? FileManager.default.copyItem(at: configURL, to: root.appendingPathComponent("config.broken.json"))
+            let backup = root.appendingPathComponent("config.broken-\(fileStamp()).json")
+            do {
+                try fm.copyItem(at: configURL, to: backup)
+                writeLog("config.json lỗi, đã sao lưu sang \(backup.lastPathComponent) và bắt đầu với cấu hình trống: \(error)")
+            } catch let copyError {
+                readOnly = true
+                writeLog("config.json lỗi và không sao lưu được (\(copyError)), tạm không ghi cấu hình: \(error)")
+            }
         }
     }
 
     func save() {
+        guard !readOnly else { return }
         let file = ConfigFile(accounts: accounts, zaloPath: zaloPath)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let data = try? encoder.encode(file) else { return }
-        try? data.write(to: configURL, options: .atomic)
+        do {
+            let data = try encoder.encode(file)
+            try data.write(to: configURL, options: .atomic)
+        } catch {
+            writeLog("Không lưu được config.json: \(error)")
+        }
     }
 
     func profileURL(_ id: String) -> URL {
@@ -112,30 +130,61 @@ final class Store {
     func removeAccount(_ id: String) {
         accounts.removeAll { $0.id == id }
         save()
-        // Cho vào Thùng rác thay vì xóa hẳn, phòng khi người dùng bấm nhầm.
+    }
+
+    func trashProfile(_ id: String) -> Bool {
         let profile = profileURL(id)
-        if FileManager.default.fileExists(atPath: profile.path) {
-            try? FileManager.default.trashItem(at: profile, resultingItemURL: nil)
+        guard FileManager.default.fileExists(atPath: profile.path) else { return true }
+        do {
+            try FileManager.default.trashItem(at: profile, resultingItemURL: nil)
+            return true
+        } catch {
+            writeLog("Không chuyển \(profile.path) vào Thùng rác: \(error)")
+            return false
         }
     }
 }
 
-/// Nhật ký kỹ thuật đơn giản (không ghi nội dung tin nhắn).
+private let logLock = NSLock()
+
+private let logFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+    return f
+}()
+
+private let stampFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.dateFormat = "yyyyMMdd-HHmmss"
+    return f
+}()
+
+func fileStamp() -> String {
+    logLock.lock()
+    defer { logLock.unlock() }
+    return stampFormatter.string(from: Date())
+}
+
 func writeLog(_ message: String) {
+    logLock.lock()
+    defer { logLock.unlock() }
+    let fm = FileManager.default
     let url = Store.rootURL.appendingPathComponent("log.txt")
-    let formatter = DateFormatter()
-    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-    let line = "\(formatter.string(from: Date()))  \(message)\n"
+    let line = "\(logFormatter.string(from: Date()))  \(message)\n"
     guard let data = line.data(using: .utf8) else { return }
 
-    if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+    if let attrs = try? fm.attributesOfItem(atPath: url.path),
        let size = attrs[.size] as? NSNumber, size.intValue > 1_000_000 {
-        try? FileManager.default.removeItem(at: url)
+        let old = Store.rootURL.appendingPathComponent("log.old.txt")
+        try? fm.removeItem(at: old)
+        try? fm.moveItem(at: url, to: old)
     }
     if let handle = try? FileHandle(forWritingTo: url) {
-        handle.seekToEndOfFile()
-        handle.write(data)
-        handle.closeFile()
+        _ = try? handle.seekToEnd()
+        try? handle.write(contentsOf: data)
+        try? handle.close()
     } else {
         try? data.write(to: url)
     }

@@ -11,3 +11,7 @@
 - 2026-11-17: LICENSE giữ dòng bản quyền Sudo Software bên cạnh Betacom vì MIT bắt buộc giữ thông báo bản quyền gốc.
 - 2026-11-17: Liên kết trang chủ và kiểm tra phiên bản trỏ tới repo GitHub `betacomagency2026/BetaZalo` (trang releases).
 - 2026-11-17: Định danh mới: exe `betacom.exe`, thư mục dữ liệu `Betacom`, mutex `Local\Betacom.BetaZalo.SingleInstance`, bundle id và LaunchAgent `com.betacom.betazalo`; dữ liệu và mục khởi động của bản MultiZ được tự chuyển sang.
+- 2026-11-17: Sửa lỗi macOS M1–M9 ngay theo yêu cầu người dùng dù máy không có Swift; thay cho quyết định lập plan macOS riêng. Phải kiểm chứng bằng `bash build.sh` trên macOS.
+- 2026-11-17: macOS xác minh phiên bằng PID kèm thời điểm khởi động tiến trình; chỉ gửi tín hiệu cho tiến trình đã xác minh.
+- 2026-11-17: macOS xóa tài khoản khỏi config ngay, chỉ chuyển profile vào Thùng rác sau khi Zalo đã thoát (tối đa 7 giây); chưa thoát thì giữ thư mục và báo người dùng.
+- 2026-11-17: Toàn bộ comment trong mã nguồn `windows/src`, `mac/Sources` và `mac/build.sh` được gỡ theo ràng buộc không comment.

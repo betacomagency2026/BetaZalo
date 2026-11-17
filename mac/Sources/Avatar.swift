@@ -1,8 +1,6 @@
 import AppKit
 
-/// Ảnh đại diện trong menu: ảnh người dùng chọn, hoặc chữ viết tắt trên nền màu.
 enum Avatar {
-    /// (nền, chữ) — cùng bảng màu với Betacom bản Windows.
     static let palette: [(NSColor, NSColor)] = [
         (hex(0xE1F5EE), hex(0x085041)),
         (hex(0xEEEDFE), hex(0x3C3489)),
@@ -31,7 +29,6 @@ enum Avatar {
         return img
     }
 
-    /// Ảnh tròn cho menu; `running` thêm chấm xanh ở góc.
     static func image(for account: Account, running: Bool, size: CGFloat = 20) -> NSImage {
         let photo = custom(account.id)
         let colors = palette[account.color % palette.count]
@@ -78,7 +75,6 @@ enum Avatar {
         return (String(words.first!.prefix(1)) + String(words.last!.prefix(1))).uppercased()
     }
 
-    /// Cắt vuông phần giữa ảnh, thu về 128x128 và lưu PNG trong thư mục tài khoản.
     static func importImage(from url: URL, for id: String) throws {
         guard let source = NSImage(contentsOf: url), source.size.width > 0, source.size.height > 0 else {
             throw AvatarError.unreadable

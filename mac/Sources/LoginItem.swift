@@ -1,7 +1,5 @@
 import Foundation
 
-/// Mở Betacom cùng máy Mac bằng một LaunchAgent nhỏ trong ~/Library/LaunchAgents.
-/// Cách này chạy được từ macOS 12 và không cần quyền đặc biệt.
 enum LoginItem {
     private static let label = "com.betacom.betazalo"
 
@@ -15,15 +13,21 @@ enum LoginItem {
         FileManager.default.fileExists(atPath: plistURL.path)
     }
 
-    static func setEnabled(_ on: Bool) {
-        if on {
-            write()
-        } else {
-            try? FileManager.default.removeItem(at: plistURL)
-        }
+    static var isTranslocated: Bool {
+        Bundle.main.bundlePath.contains("/AppTranslocation/")
     }
 
-    /// Ghi lại đường dẫn hiện tại của Betacom (phòng khi người dùng đã chuyển app sang thư mục khác).
+    @discardableResult
+    static func setEnabled(_ on: Bool) -> Bool {
+        if on { return write() }
+        do {
+            try FileManager.default.removeItem(at: plistURL)
+        } catch {
+            writeLog("Không xóa được LaunchAgent: \(error)")
+        }
+        return true
+    }
+
     static func refreshIfEnabled() {
         let dir = plistURL.deletingLastPathComponent()
         var hadOld = false
@@ -37,20 +41,28 @@ enum LoginItem {
         if hadOld || isEnabled { write() }
     }
 
-    private static func write() {
-        guard let exe = Bundle.main.executablePath else { return }
+    @discardableResult
+    private static func write() -> Bool {
+        if isTranslocated {
+            writeLog("Không ghi LaunchAgent vì Betacom đang chạy từ App Translocation: \(Bundle.main.bundlePath)")
+            return false
+        }
+        guard let exe = Bundle.main.executablePath else { return false }
         let plist: [String: Any] = [
             "Label": label,
             "ProgramArguments": [exe],
             "RunAtLoad": true,
             "ProcessType": "Interactive",
+            "AbandonProcessGroup": true,
         ]
         do {
             try FileManager.default.createDirectory(at: plistURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
             try data.write(to: plistURL, options: .atomic)
+            return true
         } catch {
             writeLog("Không ghi được LaunchAgent: \(error)")
+            return false
         }
     }
 }

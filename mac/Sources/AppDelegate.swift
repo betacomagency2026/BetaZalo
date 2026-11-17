@@ -13,8 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let store = Store.shared
     private let launcher = ZaloLauncher()
     private var statusItem: NSStatusItem!
-
-    // MARK: - Khởi động
+    private var stopOnQuit = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         writeLog("=== Betacom \(appVersion) khởi động ===")
@@ -36,16 +35,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         LoginItem.refreshIfEnabled()
         launcher.restore()
+        reopenPrevious()
 
-        // Mở lại các tài khoản đang dùng ở lần trước.
-        if launcher.zaloApp() != nil {
-            for account in store.accounts where account.reopen && !launcher.isRunning(account.id) {
-                try? launcher.start(account)
+        if store.readOnly {
+            DispatchQueue.main.async {
+                Prompt.info(
+                    "Không đọc được cấu hình",
+                    "Betacom không đọc hoặc không sao lưu được \(self.store.configURL.path). Thay đổi trong lần chạy này sẽ không được lưu để tránh ghi đè cấu hình cũ."
+                )
             }
         }
 
         if store.accounts.isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.welcome() }
+        }
+    }
+
+    private func reopenPrevious() {
+        guard launcher.zaloApp() != nil else { return }
+        let ids = store.accounts.filter { $0.reopen && !launcher.isRunning($0.id) }.map(\.id)
+        for (index, id) in ids.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5 * Double(index)) { [weak self] in
+                guard let self = self, let account = self.store.account(id), account.reopen,
+                      !self.launcher.isRunning(id) else { return }
+                do {
+                    try self.launcher.start(account)
+                } catch {
+                    writeLog("Không mở lại được \(id): \(error)")
+                }
+            }
         }
     }
 
@@ -58,8 +76,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Prompt.info("Chào mừng bạn đến với Betacom", message)
         if launcher.zaloApp() == nil { askForZalo() }
     }
-
-    // MARK: - Menu
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
@@ -162,8 +178,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return mi
     }
 
-    // MARK: - Tài khoản
-
     @objc private func openAccount(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String, let account = store.account(id) else { return }
         if launcher.isRunning(id) {
@@ -243,19 +257,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             destructive: true
         )
         guard ok else { return }
-        launcher.stop(id)
-        // Đợi Zalo thoát hẳn rồi mới dọn thư mục.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            self.store.removeAccount(id)
+        store.removeAccount(id)
+        writeLog("Đã xóa tài khoản \(id)")
+        launcher.stop(id) { [weak self] exited in
+            guard let self = self else { return }
             Avatar.remove(id)
-            writeLog("Đã xóa tài khoản \(id)")
+            let path = self.store.profileURL(id).path
+            if !exited {
+                Prompt.info(
+                    "Chưa dọn được dữ liệu",
+                    "Zalo của tài khoản này chưa thoát nên dữ liệu vẫn nằm ở \(path). Hãy thoát Zalo đó rồi xóa thư mục này nếu không cần nữa."
+                )
+            } else if !self.store.trashProfile(id) {
+                Prompt.info("Chưa dọn được dữ liệu", "Không chuyển được \(path) vào Thùng rác. Hãy xóa thư mục này bằng tay nếu không cần nữa.")
+            }
         }
     }
 
-    // MARK: - Cài đặt & thông tin
-
     @objc private func toggleLogin() {
-        LoginItem.setEnabled(!LoginItem.isEnabled)
+        if !LoginItem.setEnabled(!LoginItem.isEnabled) {
+            Prompt.info(
+                "Chưa bật được",
+                "Betacom đang chạy từ vị trí tạm của macOS (App Translocation) hoặc không ghi được LaunchAgent. Hãy chuyển Betacom.app vào thư mục Applications, mở lại rồi bật lại mục này."
+            )
+        }
     }
 
     @objc private func chooseZalo() {
@@ -332,10 +357,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             alert.addButton(withTitle: "Hủy")
             switch alert.runModal() {
             case .alertFirstButtonReturn:
-                // Lần sau mở Betacom vẫn tự mở lại các tài khoản này.
-                launcher.stopAll(rememberForNextLaunch: true)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { NSApp.terminate(nil) }
-                return
+                stopOnQuit = true
             case .alertSecondButtonReturn:
                 break
             default:
@@ -343,5 +365,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         NSApp.terminate(nil)
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard stopOnQuit, launcher.runningCount > 0 else { return .terminateNow }
+        stopOnQuit = false
+        var replied = false
+        let reply = {
+            guard !replied else { return }
+            replied = true
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        launcher.stopAll(rememberForNextLaunch: true, completion: reply)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: reply)
+        return .terminateLater
     }
 }
