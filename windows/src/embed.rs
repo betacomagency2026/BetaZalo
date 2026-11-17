@@ -67,7 +67,7 @@ pub(crate) fn release(s: &mut Session) {
 pub(crate) fn place(s: &mut Session, embed: bool, pane: HWND, main: HWND) {
     unsafe {
         let h = s.hwnd;
-        if h.is_null() {
+        if h.is_null() || IsHungAppWindow(h) != 0 {
             return;
         }
         let mut pr: RECT = std::mem::zeroed();
@@ -98,7 +98,7 @@ pub(crate) fn place(s: &mut Session, embed: bool, pane: HWND, main: HWND) {
 pub(crate) fn park(s: &mut Session, embed: bool, pane: HWND) {
     unsafe {
         let h = s.hwnd;
-        if h.is_null() {
+        if h.is_null() || IsHungAppWindow(h) != 0 {
             return;
         }
         if embed {
@@ -116,7 +116,7 @@ pub(crate) fn park(s: &mut Session, embed: bool, pane: HWND) {
 /// từ Windows, nên Zalo (Chromium) không nhận bàn phím. Ta tự gửi tín hiệu kích hoạt + focus.
 pub(crate) fn activate_child(h: HWND) {
     unsafe {
-        if h.is_null() || IsWindow(h) == 0 {
+        if h.is_null() || IsWindow(h) == 0 || IsHungAppWindow(h) != 0 {
             return;
         }
         PostMessageW(h, WM_NCACTIVATE, 1, 0);

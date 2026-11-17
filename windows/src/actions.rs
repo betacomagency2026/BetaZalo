@@ -85,12 +85,19 @@ pub(crate) fn delete_account(idx: usize) {
     if msgbox(&q, MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES {
         return;
     }
-    let shared = with_app(|a| {
+    let (shared, job) = with_app(|a| {
         a.stop(&acc.id);
         a.avatars.remove(&acc.id);
-        a.cfg.accounts.iter().filter(|x| x.id == acc.id).count() > 1
+        let shared = a.cfg.accounts.iter().filter(|x| x.id == acc.id).count() > 1;
+        (shared, a.stopping.remove(&acc.id).map(|s| s.job))
     })
-    .unwrap_or(true);
+    .unwrap_or((true, None));
+    if let Some(job) = job {
+        if !session::wait_exit(job, std::time::Duration::from_secs(3)) {
+            log(&format!("Phiên {} chưa thoát hẳn trước khi xóa dữ liệu", acc.id));
+        }
+        unsafe { CloseHandle(job) };
+    }
     let dir = util::profiles_dir().join(&acc.id);
     let mut leftover = None;
     if !util::is_safe_id(&acc.id) || shared {
@@ -375,8 +382,7 @@ pub(crate) fn account_menu(idx: usize, x: i32, y: i32) {
     match popup_menu(&items, x, y) {
         1 => {
             with_app(|a| {
-                a.stop(&acc.id);
-                a.start(&acc.id);
+                a.restart(&acc.id);
                 a.select(idx);
             });
         }
@@ -502,10 +508,7 @@ pub(crate) fn do_hit(hit: Hit, screen_pt: POINT) {
                 }
                 Act::Restart => {
                     if let Some(id) = id {
-                        with_app(|a| {
-                            a.stop(&id);
-                            a.start(&id)
-                        });
+                        with_app(|a| a.restart(&id));
                     }
                 }
                 Act::Reattach => {

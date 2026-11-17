@@ -55,6 +55,7 @@ const TIMER_TICK: usize = 1;
 const WM_MOUSELEAVE_X: u32 = 0x02A3;
 const HSHELL_FLASH_X: usize = 0x8006;
 const NOTIFY_COOLDOWN: Duration = Duration::from_secs(8);
+const STOP_TIMEOUT: Duration = Duration::from_secs(10);
 /// thông điệp nội bộ: trao quyền bàn phím cho cửa sổ Zalo đang chọn
 const WM_APP_FOCUS: u32 = 0x8000 + 20;
 const WM_APP_RELAYOUT: u32 = 0x8000 + 21;
@@ -87,11 +88,18 @@ struct Pending {
     text: String,
 }
 
+struct Stopping {
+    job: HANDLE,
+    since: Instant,
+    restart: bool,
+}
+
 struct App {
     hwnd: HWND,
     pane: HWND,
     cfg: Config,
     sessions: HashMap<String, Session>,
+    stopping: HashMap<String, Stopping>,
     failed: HashMap<String, String>,
     zalo: Option<PathBuf>,
     dpi: u32,
@@ -274,7 +282,12 @@ impl App {
 
     // ---------------- phiên ----------------
     fn start(&mut self, id: &str) {
-        if self.sessions.contains_key(id) {
+        if self.sessions.contains_key(id) || self.cfg.index_of(id).is_none() {
+            return;
+        }
+        if let Some(st) = self.stopping.get_mut(id) {
+            st.restart = true;
+            self.invalidate();
             return;
         }
         if !self.zalo.as_ref().is_some_and(|p| p.is_file()) {
@@ -300,20 +313,62 @@ impl App {
     }
 
     fn stop(&mut self, id: &str) {
+        self.stop_with(id, false);
+    }
+
+    fn restart(&mut self, id: &str) {
+        self.stop_with(id, true);
+    }
+
+    fn stop_with(&mut self, id: &str, restart: bool) {
         self.queue.retain(|x| x != id);
         if let Some(s) = self.sessions.remove(id) {
             unsafe {
                 if !s.hwnd.is_null() {
-                    ShowWindow(s.hwnd, SW_HIDE);
+                    ShowWindowAsync(s.hwnd, SW_HIDE);
                 }
             }
-            session::stop(&s);
-            log(&format!("Đã tắt phiên {id}"));
+            session::terminate(s.job);
+            self.stopping.insert(id.to_string(), Stopping { job: s.job, since: Instant::now(), restart });
+            log(&format!("Đang tắt phiên {id}"));
+        } else if let Some(st) = self.stopping.get_mut(id) {
+            st.restart = restart;
         }
         self.failed.remove(id);
         self.clear_unseen(id);
         self.update_tray_tip();
         self.invalidate();
+        if restart && !self.stopping.contains_key(id) {
+            self.start(id);
+        }
+    }
+
+    fn reap_stopping(&mut self) {
+        let mut restart_ids = vec![];
+        let mut timed_out = vec![];
+        self.stopping.retain(|id, st| {
+            let gone = session::job_pids(st.job).is_empty();
+            if !gone && st.since.elapsed() < STOP_TIMEOUT {
+                return true;
+            }
+            unsafe { CloseHandle(st.job) };
+            if gone {
+                log(&format!("Đã tắt phiên {id}"));
+                if st.restart {
+                    restart_ids.push(id.clone());
+                }
+            } else {
+                log(&format!("Phiên {id} chưa thoát sau {}s", STOP_TIMEOUT.as_secs()));
+                timed_out.push(id.clone());
+            }
+            false
+        });
+        for id in timed_out {
+            self.failed.insert(id, "Phiên cũ chưa thoát hẳn, hãy thử lại.".into());
+        }
+        for id in restart_ids {
+            self.start(&id);
+        }
     }
 
     fn clear_unseen(&mut self, id: &str) {
@@ -343,7 +398,7 @@ impl App {
             if let Some(wi) = session::best_window(&pids, true, null_mut()) {
                 unsafe {
                     if IsWindowVisible(wi.hwnd) == 0 {
-                        ShowWindow(wi.hwnd, SW_SHOW);
+                        ShowWindowAsync(wi.hwnd, SW_SHOW);
                     }
                 }
                 adopt(s, &wi, embed, pane, main, is_sel);
@@ -494,6 +549,7 @@ impl App {
     }
 
     fn tick(&mut self) {
+        self.reap_stopping();
         let sel = self.selected_id();
         let embed = self.cfg.embed;
         let (pane, main) = (self.pane, self.hwnd);
@@ -519,6 +575,9 @@ impl App {
                 continue;
             }
             unsafe {
+                if !s.hwnd.is_null() && IsHungAppWindow(s.hwnd) != 0 {
+                    continue;
+                }
                 if !s.hwnd.is_null() && IsWindow(s.hwnd) == 0 {
                     log(&format!("Cửa sổ của {id} đã đóng, tìm cửa sổ mới"));
                     s.hwnd = null_mut();
@@ -654,7 +713,7 @@ impl App {
         for a in &self.cfg.accounts {
             let st = match self.sessions.get(&a.id) {
                 Some(s) => format!("{:?}{}{}", s.state, s.hwnd.is_null(), s.unread),
-                None => format!("off{}", self.failed.contains_key(&a.id)),
+                None => format!("off{}{}", self.failed.contains_key(&a.id), self.stopping.contains_key(&a.id)),
             };
             sig.push_str(&st);
             if let Some(s) = self.sessions.get(&a.id) {
@@ -1172,6 +1231,7 @@ fn main() {
             pane,
             cfg,
             sessions: HashMap::new(),
+            stopping: HashMap::new(),
             failed: HashMap::new(),
             zalo,
             dpi,

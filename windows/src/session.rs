@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::ptr::{null, null_mut};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use windows_sys::Win32::Foundation::*;
 use windows_sys::Win32::System::JobObjects::*;
@@ -188,17 +188,20 @@ pub fn start(exe: &Path, profile: &Path) -> Result<Session, String> {
     }
 }
 
-pub fn stop(s: &Session) {
-    unsafe {
-        TerminateJobObject(s.job, 0);
-        // chờ tối đa 3 giây cho các tiến trình thoát hẳn (giải phóng file khóa)
-        for _ in 0..30 {
-            if job_pids(s.job).is_empty() {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(100));
+pub fn terminate(job: HANDLE) {
+    unsafe { TerminateJobObject(job, 0) };
+}
+
+pub fn wait_exit(job: HANDLE, timeout: Duration) -> bool {
+    let since = Instant::now();
+    loop {
+        if job_pids(job).is_empty() {
+            return true;
         }
-        CloseHandle(s.job);
+        if since.elapsed() >= timeout {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
 

@@ -125,6 +125,7 @@ impl App {
                 (State::Running, false) => ("Đang chạy", C_GREEN),
                 _ => ("Đang mở…", C_AMBER),
             },
+            None if self.stopping.contains_key(id) => ("Đang tắt…", C_AMBER),
             None if self.failed.contains_key(id) => ("Lỗi khi mở", C_RED),
             None if self.queue.iter().any(|q| q == id) => ("Chờ mở…", C_MUTED),
             None => ("Đã tắt", C_MUTED),
@@ -567,7 +568,9 @@ impl App {
             let a = &self.cfg.accounts[i];
             match self.sessions.get(&a.id) {
                 None => {
-                    if let Some(err) = self.failed.get(&a.id) {
+                    if self.stopping.contains_key(&a.id) {
+                        (format!("Đang tắt Zalo của {}…", a.name), String::new(), vec![])
+                    } else if let Some(err) = self.failed.get(&a.id) {
                         ("Không mở được Zalo".into(), err.clone(), vec![("Thử lại", Act::Start, true)])
                     } else {
                         (
