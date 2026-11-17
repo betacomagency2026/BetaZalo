@@ -13,8 +13,24 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - run: swiftc --version
+      - run: sw_vers && swiftc --version
       - run: bash mac/build.sh
+      - name: Smoke test
+        run: |
+          mkdir -p smoke
+          open mac/build/Betacom.app
+          sleep 8
+          screencapture -x smoke/screen.png || true
+          LOG="$HOME/Library/Application Support/Betacom/log.txt"
+          cat "$LOG" || true
+          ls ~/Library/Logs/DiagnosticReports 2>/dev/null | grep -i betacom && cp ~/Library/Logs/DiagnosticReports/*etacom* smoke/ || true
+          pgrep -lx Betacom
+          pkill -x Betacom || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke
+          path: smoke
       - uses: actions/upload-artifact@v4
         with:
           name: Betacom-mac
