@@ -85,34 +85,11 @@ pub(crate) fn delete_account(idx: usize) {
     if msgbox(&q, MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES {
         return;
     }
-    let (shared, job) = with_app(|a| {
+    let Some((shared, read_only, job)) = with_app(|a| {
         a.stop(&acc.id);
         a.avatars.remove(&acc.id);
         let shared = a.cfg.accounts.iter().filter(|x| x.id == acc.id).count() > 1;
-        (shared, a.stopping.remove(&acc.id).map(|s| s.job))
-    })
-    .unwrap_or((true, None));
-    if let Some(job) = job {
-        if !session::wait_exit(job, std::time::Duration::from_secs(3)) {
-            log(&format!("Phiên {} chưa thoát hẳn trước khi xóa dữ liệu", acc.id));
-        }
-        unsafe { CloseHandle(job) };
-    }
-    let dir = util::profiles_dir().join(&acc.id);
-    let mut leftover = None;
-    if !util::is_safe_id(&acc.id) || shared {
-        log(&format!("Không xóa thư mục dữ liệu vì id không hợp lệ hoặc bị trùng: {:?}", acc.id));
-    } else if dir.exists() {
-        if let Err(e) = std::fs::remove_dir_all(&dir) {
-            log(&format!("Xóa {} lỗi, thử lại: {e}", dir.display()));
-            std::thread::sleep(std::time::Duration::from_secs(1));
-            if let Err(e) = std::fs::remove_dir_all(&dir) {
-                log(&format!("Không xóa hết được {}: {e}", dir.display()));
-                leftover = Some(dir);
-            }
-        }
-    }
-    with_app(|a| {
+        let job = a.stopping.remove(&acc.id).map(|s| s.job);
         let pos = match a.cfg.accounts.get(idx) {
             Some(x) if x.id == acc.id => Some(idx),
             _ => a.cfg.index_of(&acc.id),
@@ -127,8 +104,84 @@ pub(crate) fn delete_account(idx: usize) {
         log(&format!("Đã xóa tài khoản {} ({})", acc.name, acc.id));
         a.place_all();
         a.invalidate();
+        (shared, a.cfg.read_only, job)
+    }) else {
+        return;
+    };
+    let job = job.map(|h| h as isize);
+    if read_only || shared || !util::is_safe_id(&acc.id) {
+        log(&format!("Không xóa thư mục dữ liệu (không lưu được config, id không hợp lệ hoặc bị trùng): {:?}", acc.id));
+        if let Some(job) = job {
+            std::thread::spawn(move || {
+                session::wait_exit(job as HANDLE, Duration::from_secs(10));
+                unsafe { CloseHandle(job as HANDLE) };
+            });
+        }
+        return;
+    }
+    let dir = util::profiles_dir().join(&acc.id);
+    let id = acc.id.clone();
+    std::thread::spawn(move || purge_profile(dir, &id, job));
+}
+
+static PURGE_LEFTOVERS: std::sync::Mutex<Vec<PathBuf>> = std::sync::Mutex::new(Vec::new());
+
+fn remove_with_retry(dir: &std::path::Path) -> std::io::Result<()> {
+    if let Err(e) = std::fs::remove_dir_all(dir) {
+        log(&format!("Xóa {} lỗi, thử lại: {e}", dir.display()));
+        std::thread::sleep(Duration::from_secs(1));
+        return std::fs::remove_dir_all(dir);
+    }
+    Ok(())
+}
+
+fn purge_profile(dir: PathBuf, id: &str, job: Option<isize>) {
+    if let Some(job) = job {
+        if !session::wait_exit(job as HANDLE, Duration::from_secs(10)) {
+            log(&format!("Phiên {id} chưa thoát hẳn trước khi xóa dữ liệu"));
+        }
+        unsafe { CloseHandle(job as HANDLE) };
+    }
+    if !dir.exists() {
+        return;
+    }
+    let trash = util::profiles_dir().join(format!(".trash-{id}-{}", util::stamp()));
+    let target = match std::fs::rename(&dir, &trash) {
+        Ok(()) => trash,
+        Err(e) => {
+            log(&format!("Không đổi tên được {}: {e}", dir.display()));
+            dir
+        }
+    };
+    if let Err(e) = remove_with_retry(&target) {
+        log(&format!("Không xóa hết được {}: {e}", target.display()));
+        if let Ok(mut v) = PURGE_LEFTOVERS.lock() {
+            v.push(target);
+        }
+        let h = hwnd_main_any();
+        if !h.is_null() {
+            unsafe { PostMessageW(h, WM_APP_PURGE_FAILED, 0, 0) };
+        }
+    }
+}
+
+pub(crate) fn sweep_trash() {
+    std::thread::spawn(|| {
+        let Ok(rd) = std::fs::read_dir(util::profiles_dir()) else { return };
+        for e in rd.flatten() {
+            if e.file_name().to_string_lossy().starts_with(".trash-") && e.path().is_dir() {
+                match std::fs::remove_dir_all(e.path()) {
+                    Ok(()) => log(&format!("Đã dọn {}", e.path().display())),
+                    Err(err) => log(&format!("Chưa dọn được {}: {err}", e.path().display())),
+                }
+            }
+        }
     });
-    if let Some(dir) = leftover {
+}
+
+pub(crate) fn report_purge_failures() {
+    let paths: Vec<PathBuf> = PURGE_LEFTOVERS.lock().map(|mut v| std::mem::take(&mut *v)).unwrap_or_default();
+    for dir in paths {
         msgbox(
             &format!(
                 "Đã gỡ tài khoản khỏi danh sách nhưng chưa xóa hết dữ liệu. Hãy đóng các chương trình đang dùng thư mục này rồi xóa tay:\n\n{}",

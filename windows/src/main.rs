@@ -56,6 +56,14 @@ const STOP_TIMEOUT: Duration = Duration::from_secs(10);
 /// thông điệp nội bộ: trao quyền bàn phím cho cửa sổ Zalo đang chọn
 const WM_APP_FOCUS: u32 = 0x8000 + 20;
 const WM_APP_RELAYOUT: u32 = 0x8000 + 21;
+const WM_APP_PURGE_FAILED: u32 = 0x8000 + 22;
+const SAVE_DELAY: Duration = Duration::from_secs(2);
+
+static MAIN_HWND: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+
+fn hwnd_main_any() -> HWND {
+    MAIN_HWND.load(std::sync::atomic::Ordering::Relaxed) as HWND
+}
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Act {
@@ -119,6 +127,7 @@ struct App {
     scroll: usize,
     list_rect: RECT,
     tip: HWND,
+    save_due: Option<Instant>,
 }
 
 thread_local! {
@@ -411,7 +420,7 @@ impl App {
             deactivate_child(prev);
         }
         self.cfg.selected = Some(id.clone());
-        self.cfg.save();
+        self.save_due.get_or_insert_with(Instant::now);
         self.has_new.remove(&id);
         self.pending.remove(&id);
         // tài khoản đang tắt thì chỉ chọn, người dùng tự bấm "Mở Zalo" khi cần
@@ -544,6 +553,10 @@ impl App {
 
     fn tick(&mut self) {
         self.reap_stopping();
+        if self.save_due.is_some_and(|t| t.elapsed() >= SAVE_DELAY) {
+            self.save_due = None;
+            self.cfg.save();
+        }
         let sel = self.selected_id();
         let embed = self.cfg.embed;
         let (pane, main) = (self.pane, self.hwnd);
@@ -1037,7 +1050,16 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
             }
             0
         }
+        WM_APP_PURGE_FAILED => {
+            report_purge_failures();
+            0
+        }
         WM_DESTROY => {
+            with_app(|a| {
+                if a.save_due.take().is_some() {
+                    a.cfg.save();
+                }
+            });
             tray::remove(hwnd);
             PostQuitMessage(0);
             0
@@ -1269,7 +1291,13 @@ fn main() {
             scroll: 0,
             list_rect: rc(0, 0, 0, 0),
             tip: create_tip(hwnd),
+            save_due: None,
         };
+        MAIN_HWND.store(hwnd as isize, std::sync::atomic::Ordering::Relaxed);
+        let read_only = app.cfg.read_only;
+        if !read_only {
+            sweep_trash();
+        }
         APP.with(|a| *a.borrow_mut() = Some(app));
 
         // khay hệ thống + bắt tín hiệu nhấp nháy của cửa sổ
@@ -1287,6 +1315,15 @@ fn main() {
         }
         SetTimer(hwnd, TIMER_TICK, 400, None);
         watcher::start(hwnd as isize);
+        if read_only {
+            msgbox(
+                &format!(
+                    "Không đọc được danh sách tài khoản:\n{}\n\n{APP_NAME} đang chạy ở chế độ không lưu: thay đổi sẽ không được ghi và dữ liệu tài khoản không bị xóa. Hãy đóng chương trình đang khóa file này rồi mở lại {APP_NAME}.",
+                    util::data_root().join("config.json").display()
+                ),
+                MB_OK | MB_ICONWARNING,
+            );
+        }
 
         let mut msg: MSG = std::mem::zeroed();
         while GetMessageW(&mut msg, null_mut(), 0, 0) > 0 {
