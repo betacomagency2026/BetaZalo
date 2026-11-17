@@ -12,7 +12,7 @@ Nguồn: rà soát sau đổi tên (`docs/tien-do.md`, mục "Việc tiếp theo
 |---|---|---|---|
 | 1 | [Windows: bản cũ và chuyển dữ liệu](phase-01-win-legacy-migration.md) | mutex MultiZ, log chuyển dữ liệu, `StartupApproved` | xong |
 | 2 | [Windows: xóa tài khoản và lưu config](phase-02-win-delete-and-config.md) | xóa ở luồng phụ, `read_only`, lưu khi chọn | xong |
-| 3 | [Windows: thông báo và chi tiết giao diện](phase-03-win-notify-ui.md) | W8, cuộn, SetParent, mã lỗi, PRIVACY, comment | chờ |
+| 3 | [Windows: thông báo và chi tiết giao diện](phase-03-win-notify-ui.md) | W8, cuộn, SetParent, mã lỗi, PRIVACY, comment | xong |
 | 4 | [macOS: vòng đời tiến trình](phase-04-mac-process-lifecycle.md) | M1, M2, M3, M5 | chờ |
 | 5 | [macOS: khởi động và lỗi nhỏ](phase-05-mac-startup-minor.md) | M4, M6, M7 (sửa link), M8, M9 | chờ |
 

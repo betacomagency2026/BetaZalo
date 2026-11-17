@@ -1,5 +1,3 @@
-//! Biểu tượng khay hệ thống + thông báo góc phải màn hình.
-
 use std::cell::Cell;
 use std::ptr::{null, null_mut};
 
@@ -86,7 +84,6 @@ pub fn remove(hwnd: HWND) {
     }
 }
 
-/// Hiện thông báo ở góc phải màn hình (Windows 10/11 hiển thị dạng toast).
 pub fn notify(hwnd: HWND, title: &str, text: &str) {
     unsafe {
         let mut d = base(hwnd);

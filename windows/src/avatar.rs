@@ -1,8 +1,3 @@
-//! Ảnh đại diện do người dùng tự chọn cho từng tài khoản.
-//!
-//! Ảnh gốc được thu về 96x96 rồi lưu thành `profiles/<id>/avatar.png`,
-//! nên dù người dùng chọn ảnh vài MB thì app cũng chỉ giữ vài KB trong bộ nhớ.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::ptr::null_mut;
@@ -41,7 +36,6 @@ pub fn remove(id: &str) {
     let _ = std::fs::remove_file(path(id));
 }
 
-/// Hộp thoại chọn ảnh. Trả về đường dẫn file người dùng chọn.
 pub fn pick_file(owner: HWND) -> Option<PathBuf> {
     let mut file = [0u16; 1024];
     let filter: Vec<u16> =
@@ -61,7 +55,6 @@ pub fn pick_file(owner: HWND) -> Option<PathBuf> {
     Some(PathBuf::from(from_w(&file)))
 }
 
-/// Cắt ảnh thành hình vuông (lấy phần giữa), thu về 96x96 và lưu PNG.
 pub fn import(src: &Path, id: &str) -> Result<(), String> {
     let size = std::fs::metadata(src).map_err(|e| e.to_string())?.len();
     if size > MAX_SOURCE_BYTES {

@@ -1,8 +1,3 @@
-//! Theo dõi tin nhắn mới của từng phiên Zalo bằng UI Automation (chạy ở luồng riêng).
-//!
-//! Cách làm: đọc các dòng chữ trong cột danh sách hội thoại (bên trái cửa sổ Zalo),
-//! chuẩn hóa (bỏ giờ, số) rồi so với lần đọc trước. Dòng mới xuất hiện = có tin mới.
-
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -16,13 +11,12 @@ use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, IsWindow, PostMessa
 
 use crate::util::log;
 
-pub const WM_WATCH_EVENT: u32 = 0x8000 + 11; // WM_APP + 11
+pub const WM_WATCH_EVENT: u32 = 0x8000 + 11;
 
 #[derive(Clone)]
 pub struct Target {
     pub id: String,
     pub hwnd: isize,
-    /// người dùng đang xem tài khoản này (không cần báo)
     pub active: bool,
 }
 
@@ -97,7 +91,6 @@ unsafe fn read_lines(uia: &IUIAutomation, q: &Query, hwnd: isize) -> windows::co
     let x_max = ((480.0 * dpi).min(width * 0.55)) as i32;
     let y_min = (56.0 * dpi) as i32;
 
-    // ưu tiên lấy kèm bộ đệm (nhanh); nếu hệ thống không hỗ trợ thì đọc từng phần tử
     let (arr, cached) = match el.FindAllBuildCache(TreeScope_Descendants, &q.cond, &q.cache) {
         Ok(a) => (a, true),
         Err(_) => (el.FindAll(TreeScope_Descendants, &q.cond)?, false),
@@ -115,7 +108,7 @@ unsafe fn read_lines(uia: &IUIAutomation, q: &Query, hwnd: isize) -> windows::co
         let r = if cached { e.CachedBoundingRectangle() } else { e.CurrentBoundingRectangle() };
         let r = r.unwrap_or_default();
         if r.right <= r.left || r.bottom <= r.top {
-            continue; // phần tử ẩn / ngoài màn hình
+            continue;
         }
         let cx = (r.left + r.right) / 2 - wr.left;
         let top = r.top - wr.top;
@@ -204,7 +197,6 @@ pub fn start(notify_hwnd: isize) {
                 }
                 let new_idx: Vec<usize> =
                     lines.iter().enumerate().filter(|(_, l)| !st.prev.contains(&l.norm)).map(|(i, _)| i).collect();
-                // bỏ tin do chính mình gửi
                 let real: Vec<usize> = new_idx
                     .iter()
                     .copied()
@@ -215,7 +207,6 @@ pub fn start(notify_hwnd: isize) {
                     .collect();
                 if !new_idx.is_empty() && new_idx.len() <= 4 && !real.is_empty() {
                     let i = real[0];
-                    // tiêu đề = dòng ngay phía trên (tên hội thoại), nếu gần
                     let mut title = String::new();
                     let mut text = lines[i].text.clone();
                     if i > 0 && lines[i].top - lines[i - 1].top < 40 && lines[i].top - lines[i - 1].top > 4 {

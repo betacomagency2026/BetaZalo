@@ -1,9 +1,3 @@
-//! Khởi chạy Zalo PC gốc trong một "vùng dữ liệu" riêng cho từng tài khoản.
-//!
-//! Cách tách: chạy Zalo.exe với các biến môi trường USERPROFILE / APPDATA /
-//! LOCALAPPDATA / TEMP trỏ vào thư mục riêng của tài khoản. Mỗi phiên được
-//! gom vào một Job Object để theo dõi toàn bộ tiến trình con và tắt sạch.
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::ptr::{null, null_mut};
@@ -27,7 +21,6 @@ pub struct Session {
     pub job: HANDLE,
     pub pid: u32,
     pub hwnd: HWND,
-    /// chế độ đã áp dụng cho hwnd: Some(true)=nhúng, Some(false)=gắn kèm
     pub mode: Option<bool>,
     pub orig_style: isize,
     pub orig_exstyle: isize,
@@ -45,7 +38,6 @@ impl Session {
 }
 
 pub fn job_pids(job: HANDLE) -> Vec<u32> {
-    // header (2 x u32) + danh sách ULONG_PTR
     let mut buf = vec![0usize; 1 + 2048];
     let ok = unsafe {
         QueryInformationJobObject(
@@ -91,7 +83,6 @@ pub fn prepare_profile(profile: &Path) -> std::io::Result<()> {
 pub fn start(exe: &Path, profile: &Path) -> Result<Session, String> {
     prepare_profile(profile).map_err(|e| format!("Không tạo được thư mục dữ liệu: {e}"))?;
 
-    // --- môi trường riêng ---
     let mut env: BTreeMap<String, (String, String)> = BTreeMap::new();
     for (k, v) in std::env::vars_os() {
         let k = k.to_string_lossy().to_string();
@@ -157,7 +148,13 @@ pub fn start(exe: &Path, profile: &Path) -> Result<Session, String> {
         if ok == 0 {
             let err = GetLastError();
             CloseHandle(job);
-            return Err(format!("Không mở được Zalo.exe (mã lỗi {err})"));
+            let why = match err {
+                2 | 3 => "không tìm thấy file Zalo.exe. Hãy cài lại Zalo PC hoặc chọn lại Zalo.exe. ",
+                5 => "Windows từ chối quyền truy cập; phần mềm diệt virus hoặc chính sách của máy có thể đang chặn. ",
+                740 => "Zalo yêu cầu quyền quản trị. Hãy cài Zalo PC cho người dùng hiện tại hoặc chạy Betacom bằng quyền quản trị. ",
+                _ => "",
+            };
+            return Err(format!("Không mở được Zalo.exe: {why}(mã lỗi {err})"));
         }
         if AssignProcessToJobObject(job, pi.hProcess) == 0 {
             let err = GetLastError();
@@ -204,8 +201,6 @@ pub fn wait_exit(job: HANDLE, timeout: Duration) -> bool {
         std::thread::sleep(Duration::from_millis(100));
     }
 }
-
-// ---------------- tìm cửa sổ ----------------
 
 #[derive(Clone, Debug)]
 pub struct WinInfo {
@@ -264,7 +259,6 @@ pub fn list_windows(pids: &[u32]) -> Vec<WinInfo> {
     ctx.out
 }
 
-/// Cửa sổ chính tốt nhất: ưu tiên đang hiện, lớn nhất.
 pub fn best_window(pids: &[u32], include_hidden: bool, exclude: HWND) -> Option<WinInfo> {
     let mut v: Vec<WinInfo> = list_windows(pids)
         .into_iter()
@@ -277,7 +271,6 @@ pub fn best_window(pids: &[u32], include_hidden: bool, exclude: HWND) -> Option<
     v.into_iter().next()
 }
 
-/// "(3) Zalo" -> 3
 pub fn parse_unread(title: &str) -> u32 {
     let t = title.trim();
     if let Some(rest) = t.strip_prefix('(') {
@@ -294,8 +287,6 @@ pub fn window_title(hwnd: HWND) -> String {
     unsafe { GetWindowTextW(hwnd, title.as_mut_ptr(), 256) };
     from_w(&title)
 }
-
-// ---------------- tìm Zalo.exe ----------------
 
 fn reg_string(root: HKEY, sub: &str, val: &str) -> Option<String> {
     let mut buf = vec![0u16; 1024];

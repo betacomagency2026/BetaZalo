@@ -32,7 +32,7 @@ Xóa một tài khoản trong Betacom sẽ xóa thư mục dữ liệu của tà
 
 ## Kiểm tra file tải về
 
-Mỗi bản phát hành kèm `SHA256SUMS.txt`. Kiểm tra trong PowerShell:
+Khi bản phát hành có kèm `SHA256SUMS.txt`, so mã băm của file tải về với giá trị trong đó. Tính mã băm trong PowerShell:
 
 ```
 Get-FileHash .\betacom.exe -Algorithm SHA256

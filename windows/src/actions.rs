@@ -1,5 +1,3 @@
-//! Các thao tác có hộp thoại / menu: thêm, sửa, xóa tài khoản, cài đặt, khay hệ thống.
-
 use super::*;
 
 pub(crate) fn hwnd_main() -> HWND {
@@ -218,7 +216,6 @@ pub(crate) fn pick_exe() {
 }
 
 pub(crate) fn popup_menu(items: &[(u32, &str, bool, bool)], x: i32, y: i32) -> u32 {
-    // items: (id, nhãn, checked, enabled); id 0 = vạch ngăn
     unsafe {
         let m = CreatePopupMenu();
         let mut keep: Vec<Vec<u16>> = vec![];
@@ -248,7 +245,6 @@ pub(crate) fn popup_menu(items: &[(u32, &str, bool, bool)], x: i32, y: i32) -> u
     }
 }
 
-// ---- khởi động cùng Windows ----
 pub(crate) const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const APPROVED_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";
 
@@ -293,10 +289,7 @@ pub(crate) fn migrate_autorun() {
             had_old = true;
         }
     }
-    if had_old {
-        set_autorun(true);
-    } else if autorun_enabled() {
-        // cập nhật đường dẫn nếu file .exe đã đổi tên / đổi chỗ
+    if had_old || autorun_enabled() {
         set_autorun(true);
     }
 }

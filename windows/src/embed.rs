@@ -15,11 +15,26 @@ pub(crate) fn apply_mode(s: &mut Session, embed: bool, pane: HWND, main: HWND) {
             let ex = s.orig_exstyle as u32 & !(WS_EX_APPWINDOW | WS_EX_WINDOWEDGE | WS_EX_DLGMODALFRAME);
             SetWindowLongPtrW(h, GWL_EXSTYLE, ex as isize);
             let prev = SetParent(h, pane);
-            if prev.is_null() {
-                log(&format!("SetParent lỗi {} — hãy thử chế độ cửa sổ gắn kèm", GetLastError()));
+            let err = GetLastError();
+            if prev.is_null() && GetParent(h) != pane {
+                log(&format!("SetParent lỗi {err}, chuyển cửa sổ này sang chế độ gắn kèm"));
+                SetWindowLongPtrW(h, GWL_STYLE, s.orig_style);
+                SetWindowLongPtrW(h, GWL_EXSTYLE, (s.orig_exstyle as u32 & !WS_EX_APPWINDOW) as isize);
+                SetWindowLongPtrW(h, GWLP_HWNDPARENT, main as isize);
+                SetWindowPos(
+                    h,
+                    null_mut(),
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+                );
+                s.mode = Some(false);
+                return;
             }
             SetWindowPos(h, HWND_TOP, 0, 0, 10, 10, SWP_FRAMECHANGED | SWP_NOACTIVATE);
-            log(&format!("Nhúng xong: parent khớp = {}", GetParent(h) == pane));
+            log("Nhúng xong");
         } else {
             let ex = s.orig_exstyle as u32 & !WS_EX_APPWINDOW;
             SetWindowLongPtrW(h, GWL_EXSTYLE, ex as isize);
@@ -61,13 +76,13 @@ pub(crate) fn release(s: &mut Session) {
     }
 }
 
-/// Hiện cửa sổ Zalo của tài khoản đang chọn, phủ kín khung bên phải.
 pub(crate) fn place(s: &mut Session, embed: bool, pane: HWND, main: HWND) {
     unsafe {
         let h = s.hwnd;
         if h.is_null() || IsHungAppWindow(h) != 0 {
             return;
         }
+        let embed = s.mode.unwrap_or(embed);
         let mut pr: RECT = std::mem::zeroed();
         GetClientRect(pane, &mut pr);
         if embed {
@@ -91,14 +106,13 @@ pub(crate) fn place(s: &mut Session, embed: bool, pane: HWND, main: HWND) {
     }
 }
 
-/// Cất cửa sổ Zalo của tài khoản không chọn.
-/// Chế độ nhúng: vẫn "hiển thị" nhưng nằm ngoài khung nhìn để Zalo tiếp tục cập nhật.
 pub(crate) fn park(s: &mut Session, embed: bool, pane: HWND) {
     unsafe {
         let h = s.hwnd;
         if h.is_null() || IsHungAppWindow(h) != 0 {
             return;
         }
+        let embed = s.mode.unwrap_or(embed);
         if embed {
             let mut pr: RECT = std::mem::zeroed();
             GetClientRect(pane, &mut pr);
@@ -110,8 +124,6 @@ pub(crate) fn park(s: &mut Session, embed: bool, pane: HWND) {
     }
 }
 
-/// Cửa sổ Zalo bị nhúng làm cửa sổ con sẽ không bao giờ nhận được tín hiệu "được kích hoạt"
-/// từ Windows, nên Zalo (Chromium) không nhận bàn phím. Ta tự gửi tín hiệu kích hoạt + focus.
 pub(crate) fn activate_child(h: HWND) {
     unsafe {
         if h.is_null() || IsWindow(h) == 0 || IsHungAppWindow(h) != 0 {

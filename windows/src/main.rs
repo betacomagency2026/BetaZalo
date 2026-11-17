@@ -53,7 +53,6 @@ const WM_MOUSELEAVE_X: u32 = 0x02A3;
 const HSHELL_FLASH_X: usize = 0x8006;
 const NOTIFY_COOLDOWN: Duration = Duration::from_secs(8);
 const STOP_TIMEOUT: Duration = Duration::from_secs(10);
-/// thông điệp nội bộ: trao quyền bàn phím cho cửa sổ Zalo đang chọn
 const WM_APP_FOCUS: u32 = 0x8000 + 20;
 const WM_APP_RELAYOUT: u32 = 0x8000 + 21;
 const WM_APP_PURGE_FAILED: u32 = 0x8000 + 22;
@@ -115,16 +114,16 @@ struct App {
     queue: VecDeque<String>,
     last_auto: Instant,
     sig: String,
-    // tin mới / thông báo
     has_new: HashSet<String>,
     last_notify: HashMap<String, Instant>,
     pending: HashMap<String, Pending>,
     flash_pending: HashMap<String, Instant>,
+    flash_notified: HashMap<String, Instant>,
     last_notified_id: Option<String>,
     hidden_to_tray: bool,
     avatars: HashMap<String, Image>,
-    // danh sách tài khoản
     scroll: usize,
+    wheel_acc: i32,
     list_rect: RECT,
     tip: HWND,
     save_due: Option<Instant>,
@@ -137,7 +136,6 @@ thread_local! {
     static RELAYOUT_PENDING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
-/// Mượn App an toàn: nếu đang được mượn (gọi lồng), trả về None thay vì panic.
 fn with_app<R>(f: impl FnOnce(&mut App) -> R) -> Option<R> {
     APP.with(|a| match a.try_borrow_mut() {
         Ok(mut g) => g.as_mut().map(f),
@@ -184,7 +182,6 @@ impl App {
         self.layout();
     }
 
-    /// Chú thích khi rê chuột (thanh thu gọn chỉ có biểu tượng)
     fn tip_for(&self, h: Hit) -> Option<(String, RECT)> {
         let r = self.hits.iter().rev().find(|(_, x)| *x == h).map(|(r, _)| *r)?;
         let collapsed = self.cfg.sidebar_collapsed;
@@ -247,7 +244,6 @@ impl App {
         }
     }
 
-    /// cửa sổ Zalo đang chọn (chỉ khi nhúng)
     fn embedded_selected(&self) -> HWND {
         if !self.cfg.embed {
             return null_mut();
@@ -255,7 +251,6 @@ impl App {
         self.selected_id().and_then(|id| self.sessions.get(&id).map(|s| s.hwnd)).unwrap_or(null_mut())
     }
 
-    // ---------------- bố cục ----------------
     fn layout(&mut self) {
         unsafe {
             let mut cr: RECT = std::mem::zeroed();
@@ -283,7 +278,6 @@ impl App {
         }
     }
 
-    // ---------------- phiên ----------------
     fn start(&mut self, id: &str) {
         if self.sessions.contains_key(id) || self.cfg.index_of(id).is_none() {
             return;
@@ -378,6 +372,7 @@ impl App {
         self.has_new.remove(id);
         self.pending.remove(id);
         self.flash_pending.remove(id);
+        self.flash_notified.remove(id);
     }
 
     fn apply_dpi(&mut self, dpi: u32) {
@@ -423,7 +418,6 @@ impl App {
         self.save_due.get_or_insert_with(Instant::now);
         self.has_new.remove(&id);
         self.pending.remove(&id);
-        // tài khoản đang tắt thì chỉ chọn, người dùng tự bấm "Mở Zalo" khi cần
         self.place_all();
         self.update_tray_tip();
         self.invalidate();
@@ -432,7 +426,6 @@ impl App {
 
     fn select_id(&mut self, id: &str) {
         if let Some(i) = self.cfg.index_of(id) {
-            // cuộn để thấy tài khoản
             if i < self.scroll {
                 self.scroll = i;
             }
@@ -459,13 +452,19 @@ impl App {
         self.invalidate();
     }
 
-    // ---------------- tin mới / thông báo ----------------
     fn new_message(&mut self, id: &str, title: &str, text: &str) {
         let active = self.selected_id().as_deref() == Some(id) && self.app_active();
         if active {
             return;
         }
         let Some(acc) = self.account(id).cloned() else { return };
+        if !(title.is_empty() && text.is_empty()) {
+            if let Some(t) = self.flash_notified.remove(id) {
+                if t.elapsed() < NOTIFY_COOLDOWN && self.has_new.contains(id) {
+                    return;
+                }
+            }
+        }
         let first = self.has_new.insert(id.to_string());
         self.flash_pending.remove(id);
         log(&format!(
@@ -615,7 +614,6 @@ impl App {
                             && IsWindowVisible(main) != 0
                             && GetAsyncKeyState(VK_LBUTTON as i32) >= 0
                         {
-                            // chế độ gắn kèm: nếu cửa sổ Zalo bị kéo lệch thì đưa về đúng chỗ
                             let mut a: RECT = std::mem::zeroed();
                             let mut b: RECT = std::mem::zeroed();
                             GetWindowRect(s.hwnd, &mut a);
@@ -626,13 +624,10 @@ impl App {
                         }
                     }
                 } else if embed {
-                    // tài khoản không chọn: giữ cửa sổ "đang hiển thị" nhưng nằm ngoài khung nhìn,
-                    // để Zalo vẫn cập nhật giao diện (giúp phát hiện tin mới)
                     if IsWindowVisible(s.hwnd) == 0 && IsWindowVisible(main) != 0 {
                         park(s, embed, pane);
                     }
                 } else if IsWindowVisible(s.hwnd) != 0 {
-                    // Zalo tự hiện cửa sổ (bấm biểu tượng khay / thông báo của Zalo) -> chuyển sang tab đó
                     log(&format!("{id}: Zalo tự hiện cửa sổ, chuyển tab"));
                     switch_to = Some(id.clone());
                 }
@@ -655,7 +650,6 @@ impl App {
             self.select_id(&id);
         }
 
-        // tài khoản đang xem: xóa dấu tin mới
         let active = self.app_active();
         if active {
             if let Some(id) = self.selected_id() {
@@ -667,7 +661,6 @@ impl App {
             }
         }
 
-        // gửi các thông báo đang chờ (gom tin dồn dập)
         let ready: Vec<String> = self
             .pending
             .keys()
@@ -681,7 +674,6 @@ impl App {
                 }
             }
         }
-        // tín hiệu "nhấp nháy" của Zalo mà chưa đọc được nội dung -> báo chung
         let flashed: Vec<String> = self
             .flash_pending
             .iter()
@@ -690,10 +682,10 @@ impl App {
             .collect();
         for id in flashed {
             self.flash_pending.remove(&id);
+            self.flash_notified.insert(id.clone(), Instant::now());
             self.new_message(&id, "", "");
         }
 
-        // cập nhật danh sách cho luồng theo dõi tin mới
         let targets: Vec<watcher::Target> = self
             .sessions
             .iter()
@@ -706,7 +698,6 @@ impl App {
             .collect();
         watcher::set_targets(targets);
 
-        // tự mở lần lượt các tài khoản khi khởi động
         if !self.queue.is_empty() && self.last_auto.elapsed().as_millis() > 1500 {
             if let Some(id) = self.queue.pop_front() {
                 if self.cfg.index_of(&id).is_some() {
@@ -715,7 +706,6 @@ impl App {
                 self.last_auto = Instant::now();
             }
         }
-        // vẽ lại khi trạng thái đổi
         let mut sig = String::new();
         for a in &self.cfg.accounts {
             let st = match self.sessions.get(&a.id) {
@@ -764,8 +754,6 @@ fn request_focus() {
     }
 }
 
-// ---------------- window procedure ----------------
-
 fn hit_at(hits: &[(RECT, Hit)], x: i32, y: i32) -> Hit {
     hits.iter().rev().find(|(r, _)| contains(r, x, y)).map(|(_, h)| *h).unwrap_or(Hit::None)
 }
@@ -797,7 +785,6 @@ fn track_leave(hwnd: HWND) {
 }
 
 unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT {
-    // thông điệp đăng ký động
     let shell = SHELL_MSG.with(|c| c.get());
     if shell != 0 && msg == shell {
         if (wp & 0xFFFF) == HSHELL_FLASH_X {
@@ -807,7 +794,6 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
     }
     let tb = TASKBAR_MSG.with(|c| c.get());
     if tb != 0 && msg == tb {
-        // Explorer khởi động lại: thêm lại biểu tượng khay
         tray::add(hwnd, APP_NAME);
         with_app(|a| a.update_tray_tip());
         return 0;
@@ -923,12 +909,22 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
             ScreenToClient(hwnd, &mut pt);
             with_app(|a| {
                 if contains(&a.list_rect, pt.x, pt.y) {
-                    if delta > 0 {
-                        a.scroll = a.scroll.saturating_sub(1);
-                    } else {
-                        a.scroll += 1;
+                    if (a.wheel_acc > 0) != (delta > 0) {
+                        a.wheel_acc = 0;
                     }
-                    a.invalidate();
+                    a.wheel_acc += delta;
+                    let before = a.scroll;
+                    while a.wheel_acc >= WHEEL_DELTA as i32 {
+                        a.scroll = a.scroll.saturating_sub(1);
+                        a.wheel_acc -= WHEEL_DELTA as i32;
+                    }
+                    while a.wheel_acc <= -(WHEEL_DELTA as i32) {
+                        a.scroll += 1;
+                        a.wheel_acc += WHEEL_DELTA as i32;
+                    }
+                    if a.scroll != before {
+                        a.invalidate();
+                    }
                 }
             });
             0
@@ -1000,7 +996,6 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
             let ev = (lp & 0xFFFF) as u32;
             match ev {
                 0x0405 => {
-                    // NIN_BALLOONUSERCLICK: bấm vào thông báo -> mở đúng tài khoản
                     with_app(|a| {
                         a.show_main();
                         if let Some(id) = a.last_notified_id.clone() {
@@ -1071,7 +1066,6 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
 unsafe extern "system" fn pane_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT {
     match msg {
         WM_PARENTNOTIFY => {
-            // người dùng bấm chuột vào cửa sổ Zalo nhúng -> trao bàn phím cho Zalo
             let ev = (wp & 0xFFFF) as u32;
             if ev == WM_LBUTTONDOWN || ev == WM_RBUTTONDOWN || ev == WM_MBUTTONDOWN || ev == 0x0246 {
                 request_focus();
@@ -1245,7 +1239,6 @@ fn main() {
         log(&format!("Zalo.exe: {:?}", zalo));
         let dpi = GetDpiForWindow(hwnd).max(96);
 
-        // hàng đợi tự mở: tài khoản đang chọn trước
         let mut queue: VecDeque<String> = VecDeque::new();
         if zalo.is_some() {
             if let Some(sel) = &cfg.selected {
@@ -1285,10 +1278,12 @@ fn main() {
             last_notify: HashMap::new(),
             pending: HashMap::new(),
             flash_pending: HashMap::new(),
+            flash_notified: HashMap::new(),
             last_notified_id: None,
             hidden_to_tray: start_in_tray,
             avatars,
             scroll: 0,
+            wheel_acc: 0,
             list_rect: rc(0, 0, 0, 0),
             tip: create_tip(hwnd),
             save_due: None,
@@ -1300,7 +1295,6 @@ fn main() {
         }
         APP.with(|a| *a.borrow_mut() = Some(app));
 
-        // khay hệ thống + bắt tín hiệu nhấp nháy của cửa sổ
         tray::add(hwnd, APP_NAME);
         let shell_name = w("SHELLHOOK");
         SHELL_MSG.with(|c| c.set(RegisterWindowMessageW(shell_name.as_ptr())));

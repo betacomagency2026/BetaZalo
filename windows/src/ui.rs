@@ -1,8 +1,5 @@
-//! Vẽ giao diện: thanh tài khoản, thanh tiêu đề và khung bên phải.
-
 use super::*;
 
-// màu giao diện (0xRRGGBB)
 pub(crate) const C_BG: u32 = 0xFFFFFF;
 pub(crate) const C_PANE: u32 = 0xF6F7F9;
 pub(crate) const C_LINE: u32 = 0xE6E8EB;
@@ -83,7 +80,6 @@ impl App {
         wd
     }
 
-    /// Ảnh đại diện: ảnh người dùng chọn, nếu không có thì chữ viết tắt trên nền màu.
     pub(crate) fn draw_avatar(&self, cv: &mut Canvas, a: &Account, x: i32, y: i32, d: i32, off: bool) {
         if let Some(img) = self.avatars.get(&a.id) {
             cv.image_round(img, x, y, d, d, d / 2);
@@ -101,7 +97,6 @@ impl App {
     }
 
     pub(crate) fn status_of(&self, id: &str) -> (String, u32, u32) {
-        // (chữ trạng thái, màu chấm, màu chữ)
         if self.has_new.contains(id) {
             return ("Có tin nhắn mới".into(), C_GREEN, C_RED);
         }
@@ -133,7 +128,6 @@ impl App {
         }
         let sel = self.selected_index();
 
-        // ---- thanh tiêu đề bên phải ----
         self.paint_header(&mut cv, &cr, hdc, sel);
         cv.finish();
     }
@@ -147,7 +141,6 @@ impl App {
         cv.fill_round(lx, ly, lg, lg, self.s(8), C_ACCENT);
         cv.fill_round(lx + self.s(10), ly + self.s(7), self.s(14), self.s(10), self.s(5), 0xA5B4FC);
         cv.fill_round(lx + self.s(6), ly + self.s(12), self.s(15), self.s(11), self.s(5), 0xFFFFFF);
-        // nút mở rộng
         let (tw, th) = (self.s(36), self.s(26));
         let (tx, ty) = ((sw - tw) / 2, self.s(52));
         if self.hover == Hit::Btn(Act::Toggle) {
@@ -188,11 +181,9 @@ impl App {
             let off = status == "Đã tắt";
             self.draw_avatar(cv, a, ax, ay, av, off);
             let ring = if sel == Some(i) { C_SEL } else { 0xFFFFFF };
-            // chấm trạng thái (góc dưới phải)
             let dd = self.s(12);
             cv.fill_circle(ax + av - dd + self.s(2), ay + av - dd + self.s(2), dd, ring);
             cv.fill_circle(ax + av - dd + self.s(4), ay + av - dd + self.s(4), dd - self.s(4), scol);
-            // số chưa đọc / chấm đỏ tin mới (góc trên phải)
             let unread = self.sessions.get(&a.id).map(|s| s.unread).unwrap_or(0);
             if unread > 0 {
                 let txt = if unread > 99 { "99+".to_string() } else { unread.to_string() };
@@ -253,7 +244,6 @@ impl App {
     pub(crate) fn paint_sidebar_full(&mut self, cv: &mut Canvas, cr: &RECT, hdc: HDC) {
         let cr = *cr;
         let sw = self.sidebar_w();
-        // ---- thanh bên ----
         cv.fill_rect(rc(0, 0, sw, cr.bottom), C_BG);
         cv.fill_rect(rc(sw - 1, 0, sw, cr.bottom), C_LINE);
         let lg = self.s(30);
@@ -268,7 +258,6 @@ impl App {
             C_TEXT,
             DT_SINGLELINE | DT_VCENTER,
         );
-        // nút thu gọn
         let (tw, th) = (self.s(32), self.s(28));
         let (tx, ty) = (sw - tw - self.s(12), ly + (lg - th) / 2);
         if self.hover == Hit::Btn(Act::Toggle) {
@@ -306,7 +295,6 @@ impl App {
         let add_y = b - self.s(98);
         let list_bottom = add_y - self.s(10);
 
-        // ---- danh sách tài khoản (có cuộn) ----
         let item_h = self.s(56);
         let list_top = y0 + self.s(28);
         self.list_rect = rc(0, list_top, sw, list_bottom);
@@ -395,7 +383,6 @@ impl App {
             y += item_h;
         }
         if n > cap {
-            // gợi ý còn tài khoản khi cuộn
             let more_up = self.scroll > 0;
             let more_down = self.scroll + cap < n;
             let hint = match (more_up, more_down) {
@@ -412,7 +399,6 @@ impl App {
             );
         }
 
-        // nút thêm tài khoản + chân trang
         let bx = self.s(14);
         let bw = sw - self.s(28);
         let hov = self.hover == Hit::Btn(Act::AddAcc);

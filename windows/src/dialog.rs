@@ -1,5 +1,3 @@
-//! Hộp thoại "Thêm / sửa tài khoản": tên + màu.
-
 use std::cell::RefCell;
 use std::ptr::{null, null_mut};
 
@@ -85,7 +83,6 @@ unsafe extern "system" fn dlg_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM)
                             cv.fill_circle(r.left, r.top, dd, COLORS[i].0);
                             cv.stroke_round(r.left, r.top, dd, dd, dd / 2, COLORS[i].1, 1.0);
                         }
-                        // xem trước avatar
                         let mut buf = [0u16; 128];
                         GetWindowTextW(d.edit, buf.as_mut_ptr(), 128);
                         let name = from_w(&buf);
@@ -189,7 +186,6 @@ unsafe fn do_ok(hwnd: HWND) {
     let _ = hwnd;
 }
 
-/// Trả về (tên, màu) hoặc None nếu bấm Hủy.
 pub fn account_dialog(owner: HWND, heading: &str, name: &str, color: usize, ok_label: &str) -> Option<(String, usize)> {
     unsafe {
         let hinst = GetModuleHandleW(null());

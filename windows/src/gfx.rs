@@ -1,5 +1,3 @@
-//! Vẽ hình khử răng cưa bằng GDI+ và chữ bằng GDI (ClearType).
-
 use std::ptr::null_mut;
 
 use windows_sys::Win32::Foundation::*;
@@ -23,12 +21,10 @@ pub fn gdiplus_init() {
     }
 }
 
-/// 0xRRGGBB -> ARGB đục
 pub fn argb(rgb: u32) -> u32 {
     0xFF00_0000 | rgb
 }
 
-/// 0xRRGGBB -> COLORREF (0x00BBGGRR)
 pub fn cref(rgb: u32) -> COLORREF {
     ((rgb & 0xFF) << 16) | (rgb & 0xFF00) | ((rgb >> 16) & 0xFF)
 }
@@ -105,7 +101,6 @@ impl Canvas {
         }
     }
 
-    /// Chữ được vẽ sau cùng (đè lên hình).
     pub fn text(&mut self, r: RECT, s: &str, font: HFONT, rgb: u32, flags: u32) {
         self.texts.push((r, s.to_string(), font, rgb, flags));
     }
@@ -213,7 +208,6 @@ pub fn load_image(path: &std::path::Path) -> Option<Image> {
 }
 
 impl Canvas {
-    /// Vẽ ảnh phủ kín khung (cắt bớt nếu khác tỉ lệ), bo góc.
     pub fn image_round(&mut self, img: &Image, x: i32, y: i32, wd: i32, ht: i32, r: i32) {
         unsafe {
             let p = Self::round_path(x, y, wd, ht, r);

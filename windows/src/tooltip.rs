@@ -1,5 +1,3 @@
-//! Chú thích nhỏ khi rê chuột (dùng cho thanh tài khoản thu gọn).
-
 use super::*;
 use windows_sys::Win32::UI::Controls::*;
 
