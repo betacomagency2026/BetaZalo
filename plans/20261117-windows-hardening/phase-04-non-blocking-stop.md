@@ -2,23 +2,25 @@
 
 ## Yêu cầu
 
-- Bấm Tắt hoặc Khởi động lại khi Zalo đứng hình không làm MultiZ treo.
-- Khởi động lại chỉ mở phiên mới khi phiên cũ đã thoát hẳn (profile hết bị khóa).
+- Bấm chọn, Tắt hoặc Khởi động lại khi Zalo đứng hình không làm MultiZ treo.
+- Không bao giờ có hai Zalo trên cùng một profile.
+- Tài khoản đã xóa không bao giờ được mở lại.
 
 ## Cách làm
 
-- `App::stop`: `ShowWindowAsync(SW_HIDE)` thay cho `ShowWindow`; gọi `TerminateJobObject` rồi chuyển job vào `stopping: HashMap<String, Stopping { job, since, restart }>` thay vì chờ 3 giây.
-- `tick`: với mỗi mục `stopping`, nếu `job_pids` rỗng hoặc quá 5 giây thì `CloseHandle`; nếu `restart` thì gọi `start`.
-- `App::start`: bỏ qua khi id đang trong `stopping` và đánh dấu `restart = true`, tránh mở hai Zalo trên cùng profile.
-- Trạng thái hiển thị: tài khoản đang trong `stopping` hiện "Đang tắt…".
-- `exit_app`: giữ chờ đồng bộ có giới hạn (thoát chương trình, không còn UI cần phản hồi), dùng cùng hàm dừng.
-- `session::stop` tách thành `terminate` (không chờ) và `wait_exit(timeout)`.
+- `session.rs`: tách `stop` thành `terminate(&Session)` (không chờ) và `wait_exit(job, timeout)`.
+- `App::stop`: `ShowWindowAsync(SW_HIDE)`; `terminate`; chuyển job vào `stopping: HashMap<String, Stopping { job, since, restart }>`.
+- `tick`: mỗi mục `stopping`:
+  - `job_pids` rỗng: `CloseHandle`; nếu `restart` và tài khoản còn trong config thì `start`.
+  - Quá 10 giây chưa rỗng: `CloseHandle`, không mở lại, ghi `failed` = "Phiên cũ chưa thoát hẳn, hãy thử lại".
+- `App::start`: bỏ qua nếu tài khoản không còn trong config; nếu id đang trong `stopping` thì chỉ đặt `restart = true`.
+- Khởi động lại: `stop` với `restart = true`.
+- `delete_account`: gỡ mục `stopping` của id, `wait_exit` có giới hạn 3 giây rồi mới xóa thư mục (thao tác phá hủy người dùng đã xác nhận).
+- Cửa sổ đứng hình (`embed.rs`): `place`, `park`, `activate_child` bỏ qua khi `IsHungAppWindow(hwnd)`; nhánh `tick` gọi `ShowWindow`/`SetWindowPos` cũng kiểm tra.
+- Trạng thái hiển thị "Đang tắt…" cho id trong `stopping`; thêm `stopping` vào chuỗi chữ ký vẽ lại.
+- `exit_app`: giữ nguyên hành vi (đóng job, `KILL_ON_JOB_CLOSE` kết thúc tiến trình).
 
 ## Kiểm chứng
 
 - Build, clippy, fmt.
 - Kiểm thử tay mục 4 và 5 trong `plan.md`.
-
-## Rủi ro
-
-- Xóa tài khoản ngay sau khi tắt: `remove_dir_all` có thể gặp file còn khóa. `delete_account` gọi `wait_exit` có giới hạn trước khi xóa (người dùng đã xác nhận thao tác phá hủy, chờ ngắn chấp nhận được).

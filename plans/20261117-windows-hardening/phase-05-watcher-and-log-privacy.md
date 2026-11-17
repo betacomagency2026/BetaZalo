@@ -2,18 +2,14 @@
 
 ## Yêu cầu và cách làm
 
-- **W4 chi phí watcher** (`watcher.rs`), giữ nguyên thuật toán so tập dòng:
-  - Tạo `condition` và `cache request` một lần khi khởi động luồng, không tạo lại mỗi vòng.
-  - Không đọc cây UIA của tài khoản đang xem (`active`); chỉ đặt `seen_once = false` để lần đọc kế tiếp làm mốc, tránh báo tin cũ khi người dùng chuyển đi.
-  - Đặt timeout kết nối và giao dịch qua `IUIAutomation2` (ví dụ 2 giây) để một Zalo đứng hình không chặn cả luồng.
-- **L8 log tiêu đề cửa sổ** (`embed.rs:146`, `main.rs:519`): bỏ tiêu đề khỏi log, chỉ ghi class và kích thước.
+- **W4 một phần** (`watcher.rs`): tạo `condition` và `cache request` một lần khi khởi động luồng, truyền vào `read_lines`. Giữ nguyên thuật toán, chu kỳ và việc đọc tài khoản đang xem.
+- **L8** (`embed.rs`, `main.rs`): bỏ tiêu đề cửa sổ Zalo khỏi log (có thể là tên người liên hệ), chỉ ghi class và kích thước.
 
 ## Kiểm chứng
 
 - Build, clippy, fmt.
-- Kiểm thử tay mục 6 trong `plan.md`; log không còn tên hội thoại.
+- Kiểm thử tay mục 6 trong `plan.md`; log không còn tiêu đề cửa sổ.
 
-## Rủi ro
+## Hoãn
 
-- Bỏ đọc tài khoản đang xem làm mất trạng thái `prev`; cách đặt lại `seen_once` giữ hành vi hiện tại (khi `active` thì mã cũ cũng chỉ cập nhật mốc).
-- `IUIAutomation2` có từ Windows 8; Windows 7 không còn là mục tiêu.
+- Timeout UI Automation: cần tạo `CUIAutomation8` và có số liệu thời gian đọc p50/p95 trước khi chọn ngưỡng.
