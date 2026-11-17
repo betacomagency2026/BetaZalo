@@ -17,15 +17,33 @@ jobs:
       - run: bash mac/build.sh
       - name: Smoke test
         run: |
+          set -x
           mkdir -p smoke
+          ROOT="$HOME/Library/Application Support/Betacom"
           open mac/build/Betacom.app
           sleep 8
-          screencapture -x smoke/screen.png || true
-          LOG="$HOME/Library/Application Support/Betacom/log.txt"
-          cat "$LOG" || true
-          ls ~/Library/Logs/DiagnosticReports 2>/dev/null | grep -i betacom && cp ~/Library/Logs/DiagnosticReports/*etacom* smoke/ || true
+          screencapture -x smoke/1-first-launch.png || true
           pgrep -lx Betacom
-          pkill -x Betacom || true
+          pkill -x Betacom
+          sleep 2
+          printf '{"accounts":[{"id":"test1","name":"Test","color":0,"reopen":false}]}' > "$ROOT/config.json"
+          open mac/build/Betacom.app
+          sleep 5
+          open mac/build/Betacom.app
+          sleep 3
+          screencapture -x smoke/2-reopen.png || true
+          osascript -e 'tell application "System Events" to key code 53' || true
+          sleep 1
+          cp -R mac/build/Betacom.app "$RUNNER_TEMP/Copy.app"
+          "$RUNNER_TEMP/Copy.app/Contents/MacOS/Betacom"
+          echo "second copy exit $?"
+          sleep 3
+          screencapture -x smoke/3-second-copy.png || true
+          test "$(pgrep -x Betacom | wc -l | tr -d ' ')" = 1
+          cat "$ROOT/log.txt"
+          pkill -x Betacom
+          sleep 2
+          ls ~/Library/Logs/DiagnosticReports | grep -i betacom && exit 1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:

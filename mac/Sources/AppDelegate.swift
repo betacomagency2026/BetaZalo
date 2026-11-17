@@ -32,6 +32,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         menu.autoenablesItems = false
         statusItem.menu = menu
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(showMenu(_:)), name: AppDelegate.showMenuNotification, object: nil
+        )
 
         LoginItem.refreshIfEnabled()
         launcher.restore()
@@ -67,11 +70,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    static let showMenuNotification = Notification.Name("com.betacom.betazalo.show-menu")
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showMenu()
+        return false
+    }
+
+    @objc private func showMenu(_ note: Notification? = nil) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let menu = self.statusItem.menu else { return }
+            if let button = self.statusItem.button, let window = button.window,
+               window.occlusionState.contains(.visible) {
+                button.performClick(nil)
+            } else {
+                NSApp.activate(ignoringOtherApps: true)
+                menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+            }
+        }
+    }
+
     private func welcome() {
         let message = """
         Betacom đã nằm trên thanh menu, ở góc trên bên phải màn hình (biểu tượng hai bong bóng chat).
 
         Bấm vào biểu tượng đó → "Thêm tài khoản…" để mở một Zalo mới, rồi quét mã QR bằng điện thoại.
+
+        Nếu không thấy biểu tượng (thanh menu quá nhiều biểu tượng hoặc bị phần tai thỏ che), bấm lại vào Betacom trong thư mục Applications để mở menu ngay tại con trỏ chuột.
         """
         Prompt.info("Chào mừng bạn đến với Betacom", message)
         if launcher.zaloApp() == nil { askForZalo() }

@@ -14,7 +14,9 @@ if let bundleID = Bundle.main.bundleIdentifier {
             }
         }
         if kill(pid, 0) == 0 {
-            other.activate(options: [])
+            DistributedNotificationCenter.default().postNotificationName(
+                AppDelegate.showMenuNotification, object: nil, userInfo: nil, deliverImmediately: true
+            )
             exit(0)
         }
     }
