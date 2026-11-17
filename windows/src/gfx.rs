@@ -82,6 +82,7 @@ impl Canvas {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn stroke_round(&mut self, x: i32, y: i32, wd: i32, ht: i32, r: i32, rgb: u32, width: f32) {
         unsafe {
             let p = Self::round_path(x, y, wd - 1, ht - 1, r);

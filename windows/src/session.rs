@@ -116,7 +116,7 @@ pub fn start(exe: &Path, profile: &Path) -> Result<Session, String> {
         env.insert(k.to_string(), (k.to_string(), v));
     }
     let mut block: Vec<u16> = Vec::new();
-    for (_, (k, v)) in env.iter() {
+    for (k, v) in env.values() {
         block.extend(format!("{k}={v}").encode_utf16());
         block.push(0);
     }

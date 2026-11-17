@@ -62,7 +62,7 @@ MultiZ miễn phí và không quảng cáo. Nếu thấy hữu ích, bạn có t
 
 ## Build
 
-Cần Rust (stable) và `windres` của mingw-w64 (mặc định `x86_64-w64-mingw32-windres`, đổi bằng biến môi trường `WINDRES`). Chạy trong thư mục `windows/`:
+Cần Rust (stable). Toolchain MSVC dùng `rc.exe` của Windows SDK (tự tìm, hoặc đặt biến `RC`); toolchain GNU dùng `windres` của mingw-w64 (biến `WINDRES`, mặc định `x86_64-w64-mingw32-windres`). Chạy trong thư mục `windows/`:
 
 ```
 cargo build --release

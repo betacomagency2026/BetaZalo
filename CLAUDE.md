@@ -38,8 +38,7 @@ cargo fmt --check          # rustfmt.toml: max_width 120
 cargo clippy --release
 ```
 
-- `build.rs` gọi `windres` (mingw-w64) để nhúng icon, manifest, thông tin phiên bản. Mặc định tìm `x86_64-w64-mingw32-windres`, đổi bằng biến môi trường `WINDRES`. Thiếu `windres` thì `build`, `check`, `clippy` đều dừng ở build script.
-- Repo không có `.gitignore`; build tại chỗ tạo `target/` chưa theo dõi. Có thể đặt `CARGO_TARGET_DIR` ra ngoài repo.
+- `build.rs` biên dịch `res/app.rc` (icon, manifest, thông tin phiên bản). Target MSVC dùng `rc.exe`: biến `RC`, nếu không có thì bản Windows SDK mới nhất trong `Windows Kits\10\bin`. Target GNU dùng `windres`: biến `WINDRES`, mặc định `x86_64-w64-mingw32-windres`.
 - Không có test tự động.
 
 macOS, chạy trong `mac/` (cần macOS và `xcode-select --install`):

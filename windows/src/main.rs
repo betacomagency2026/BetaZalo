@@ -457,7 +457,7 @@ impl App {
                 self.cfg.accounts.iter().filter(|a| self.has_new.contains(&a.id)).map(|a| a.name.clone()).collect();
             format!("{APP_NAME} – tin mới: {}", names.join(", "))
         } else if n == 0 {
-            format!("{APP_NAME}")
+            APP_NAME.to_string()
         } else {
             format!("{APP_NAME} – {n} tài khoản đang chạy")
         };
@@ -1037,7 +1037,7 @@ fn main() {
         migrate_autorun();
         gdiplus_init();
         let hinst = GetModuleHandleW(null());
-        let icon = LoadIconW(hinst, 1 as *const u16);
+        let icon = LoadIconW(hinst, util::int_resource(1));
 
         let mc = w(MAIN_CLASS);
         let mut wc: WNDCLASSEXW = std::mem::zeroed();

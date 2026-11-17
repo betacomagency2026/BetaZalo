@@ -8,6 +8,10 @@ pub fn w(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
+pub fn int_resource(id: u16) -> *const u16 {
+    id as usize as *const u16
+}
+
 pub fn from_w(buf: &[u16]) -> String {
     let n = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
     String::from_utf16_lossy(&buf[..n])
@@ -18,7 +22,7 @@ static ROOT: OnceLock<PathBuf> = OnceLock::new();
 /// Thư mục dữ liệu của ứng dụng: %LOCALAPPDATA%\MultiZ
 pub fn data_root() -> &'static PathBuf {
     ROOT.get_or_init(|| {
-        let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(|| std::env::temp_dir());
+        let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
         let p = base.join("MultiZ");
         // Chuyển dữ liệu từ các tên cũ (Zaloo, MultiZalo) để giữ nguyên tài khoản đã đăng nhập
         if !p.exists() {

@@ -51,6 +51,7 @@ impl Fonts {
 }
 
 impl App {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn button(
         &mut self,
         cv: &mut Canvas,

@@ -31,7 +31,7 @@ pub fn add(hwnd: HWND, tip: &str) {
         let hinst = GetModuleHandleW(std::ptr::null());
         d.hIcon = LoadImageW(
             hinst,
-            1 as *const u16,
+            crate::util::int_resource(1),
             IMAGE_ICON,
             GetSystemMetrics(SM_CXSMICON),
             GetSystemMetrics(SM_CYSMICON),
@@ -69,9 +69,14 @@ pub fn notify(hwnd: HWND, title: &str, text: &str) {
         copy(&mut d.szInfo, if text.is_empty() { " " } else { text });
         d.dwInfoFlags = NIIF_USER | NIIF_LARGE_ICON | NIIF_RESPECT_QUIET_TIME;
         let hinst = GetModuleHandleW(std::ptr::null());
-        d.hBalloonIcon =
-            LoadImageW(hinst, 1 as *const u16, IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), 0)
-                as _;
+        d.hBalloonIcon = LoadImageW(
+            hinst,
+            crate::util::int_resource(1),
+            IMAGE_ICON,
+            GetSystemMetrics(SM_CXICON),
+            GetSystemMetrics(SM_CYICON),
+            0,
+        ) as _;
         Shell_NotifyIconW(NIM_MODIFY, &d);
     }
 }
