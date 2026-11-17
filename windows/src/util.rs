@@ -19,25 +19,44 @@ pub fn from_w(buf: &[u16]) -> String {
 }
 
 static ROOT: OnceLock<PathBuf> = OnceLock::new();
+static MIGRATION_NOTE: OnceLock<String> = OnceLock::new();
 
 pub fn data_root() -> &'static PathBuf {
     ROOT.get_or_init(|| {
         let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
         let p = base.join("Betacom");
-        if !p.exists() {
-            for old_name in ["MultiZ", "MultiZalo", "Zaloo"] {
-                let old = base.join(old_name);
-                if old.is_dir() {
-                    if std::fs::rename(&old, &p).is_err() {
-                        return old;
-                    }
-                    break;
+        let olds: Vec<PathBuf> =
+            ["MultiZ", "MultiZalo", "Zaloo"].iter().map(|n| base.join(n)).filter(|o| o.is_dir()).collect();
+        if p.exists() {
+            if !olds.is_empty() {
+                let _ = MIGRATION_NOTE.set(format!(
+                    "Bỏ qua chuyển dữ liệu cũ vì {} đã tồn tại; thư mục cũ còn lại: {:?}",
+                    p.display(),
+                    olds
+                ));
+            }
+        } else if let Some(old) = olds.first() {
+            match std::fs::rename(old, &p) {
+                Ok(()) => {
+                    let _ = MIGRATION_NOTE.set(format!("Đã chuyển dữ liệu {} sang {}", old.display(), p.display()));
+                }
+                Err(e) => {
+                    let _ = MIGRATION_NOTE.set(format!(
+                        "Không chuyển được {} sang {}: {e}; dùng thư mục cũ",
+                        old.display(),
+                        p.display()
+                    ));
+                    return old.clone();
                 }
             }
         }
         let _ = std::fs::create_dir_all(&p);
         p
     })
+}
+
+pub fn migration_note() -> Option<&'static str> {
+    MIGRATION_NOTE.get().map(|s| s.as_str())
 }
 
 pub fn is_safe_id(id: &str) -> bool {

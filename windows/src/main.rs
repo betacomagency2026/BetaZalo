@@ -23,7 +23,7 @@ use windows_sys::Win32::Foundation::*;
 use windows_sys::Win32::Graphics::Gdi::*;
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Registry::*;
-use windows_sys::Win32::System::Threading::CreateMutexW;
+use windows_sys::Win32::System::Threading::{CreateMutexW, OpenMutexW, SYNCHRONIZATION_SYNCHRONIZE};
 use windows_sys::Win32::UI::Controls::Dialogs::*;
 use windows_sys::Win32::UI::HiDpi::*;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
@@ -1113,6 +1113,19 @@ unsafe extern "system" fn pane_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
     }
 }
 
+fn legacy_running() -> bool {
+    unsafe {
+        let m = w("Local\\SudoSoftware.MultiZ.SingleInstance");
+        let h = OpenMutexW(SYNCHRONIZATION_SYNCHRONIZE, 0, m.as_ptr());
+        if !h.is_null() {
+            CloseHandle(h);
+            return true;
+        }
+        let c = w("MultiZMain");
+        !FindWindowW(c.as_ptr(), null()).is_null()
+    }
+}
+
 fn main() {
     unsafe {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -1130,8 +1143,19 @@ fn main() {
             }
             return;
         }
+        if legacy_running() {
+            let t = w(&format!(
+                "Bản MultiZ cũ đang chạy. Hãy thoát MultiZ (biểu tượng dưới khay hệ thống) rồi mở lại {APP_NAME} để dữ liệu được chuyển sang an toàn."
+            ));
+            let c = w(APP_NAME);
+            MessageBoxW(null_mut(), t.as_ptr(), c.as_ptr(), MB_OK | MB_ICONWARNING);
+            return;
+        }
 
         log(&format!("=== {APP_NAME} {APP_VERSION} khởi động ==="));
+        if let Some(note) = util::migration_note() {
+            log(note);
+        }
         migrate_autorun();
         gdiplus_init();
         let hinst = GetModuleHandleW(null());

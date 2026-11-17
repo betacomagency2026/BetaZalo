@@ -197,6 +197,32 @@ pub(crate) fn popup_menu(items: &[(u32, &str, bool, bool)], x: i32, y: i32) -> u
 
 // ---- khởi động cùng Windows ----
 pub(crate) const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+const APPROVED_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";
+
+fn move_startup_approved(old: &str) {
+    let sub = w(APPROVED_KEY);
+    let o = w(old);
+    let n = w(APP_NAME);
+    let mut buf = [0u8; 64];
+    let mut len = buf.len() as u32;
+    unsafe {
+        if RegGetValueW(
+            HKEY_CURRENT_USER,
+            sub.as_ptr(),
+            o.as_ptr(),
+            RRF_RT_REG_BINARY,
+            null_mut(),
+            buf.as_mut_ptr() as *mut _,
+            &mut len,
+        ) != 0
+        {
+            return;
+        }
+        RegSetKeyValueW(HKEY_CURRENT_USER, sub.as_ptr(), n.as_ptr(), REG_BINARY, buf.as_ptr() as *const _, len);
+        RegDeleteKeyValueW(HKEY_CURRENT_USER, sub.as_ptr(), o.as_ptr());
+    }
+    log(&format!("Chuyển trạng thái khởi động cùng Windows của {old} sang {APP_NAME}"));
+}
 
 pub(crate) fn migrate_autorun() {
     let sub = w(RUN_KEY);
@@ -210,6 +236,7 @@ pub(crate) fn migrate_autorun() {
         };
         if found {
             unsafe { RegDeleteKeyValueW(HKEY_CURRENT_USER, sub.as_ptr(), old.as_ptr()) };
+            move_startup_approved(name);
             had_old = true;
         }
     }
