@@ -8,6 +8,8 @@ use windows_sys::Win32::Graphics::GdiPlus::*;
 
 use crate::util::w;
 
+pub const PIXEL_FORMAT_32BPP_ARGB: i32 = 0x0026_200A;
+
 pub fn gdiplus_init() {
     unsafe {
         let mut token = 0usize;
@@ -180,15 +182,30 @@ impl Drop for Image {
 pub fn load_image(path: &std::path::Path) -> Option<Image> {
     unsafe {
         let p = w(&path.to_string_lossy());
-        let mut bmp: *mut GpBitmap = null_mut();
-        if GdipCreateBitmapFromFile(p.as_ptr(), &mut bmp) != 0 || bmp.is_null() {
+        let mut src: *mut GpBitmap = null_mut();
+        if GdipCreateBitmapFromFile(p.as_ptr(), &mut src) != 0 || src.is_null() {
             return None;
         }
         let (mut iw, mut ih) = (0u32, 0u32);
-        GdipGetImageWidth(bmp as *mut GpImage, &mut iw);
-        GdipGetImageHeight(bmp as *mut GpImage, &mut ih);
-        if iw == 0 || ih == 0 {
-            GdipDisposeImage(bmp as *mut GpImage);
+        GdipGetImageWidth(src as *mut GpImage, &mut iw);
+        GdipGetImageHeight(src as *mut GpImage, &mut ih);
+        let mut bmp: *mut GpBitmap = null_mut();
+        let copied = iw > 0
+            && ih > 0
+            && GdipCreateBitmapFromScan0(iw as i32, ih as i32, 0, PIXEL_FORMAT_32BPP_ARGB, null_mut(), &mut bmp) == 0
+            && !bmp.is_null();
+        if copied {
+            let mut g: *mut GpGraphics = null_mut();
+            if GdipGetImageGraphicsContext(bmp as *mut GpImage, &mut g) == 0 && !g.is_null() {
+                GdipDrawImageRectI(g, src as *mut GpImage, 0, 0, iw as i32, ih as i32);
+                GdipDeleteGraphics(g);
+            }
+        }
+        GdipDisposeImage(src as *mut GpImage);
+        if !copied {
+            if !bmp.is_null() {
+                GdipDisposeImage(bmp as *mut GpImage);
+            }
             return None;
         }
         Some(Image { bmp, w: iw, h: ih })

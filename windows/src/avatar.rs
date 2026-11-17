@@ -13,13 +13,11 @@ use windows_sys::Win32::Graphics::GdiPlus::*;
 use windows_sys::Win32::UI::Controls::Dialogs::*;
 
 use crate::config::Config;
-use crate::gfx::{load_image, Image};
+use crate::gfx::{load_image, Image, PIXEL_FORMAT_32BPP_ARGB};
 use crate::util::{from_w, profiles_dir, w};
 
 const SIZE: i32 = 96;
 const MAX_SOURCE_BYTES: u64 = 20 * 1024 * 1024;
-// PixelFormat32bppARGB trong gdiplus.h
-const PIXEL_FORMAT_32BPP_ARGB: i32 = 0x0026_200A;
 const PNG_ENCODER: GUID = GUID::from_u128(0x557cf406_1a04_11d3_9a73_0000f81ef32e);
 
 pub fn path(id: &str) -> PathBuf {

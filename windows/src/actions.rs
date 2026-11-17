@@ -85,15 +85,35 @@ pub(crate) fn delete_account(idx: usize) {
     if msgbox(&q, MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES {
         return;
     }
-    with_app(|a| {
+    let shared = with_app(|a| {
         a.stop(&acc.id);
-        let dir = util::profiles_dir().join(&acc.id);
-        if let Err(e) = std::fs::remove_dir_all(&dir) {
-            log(&format!("Không xóa hết được {}: {e}", dir.display()));
-        }
         a.avatars.remove(&acc.id);
-        a.cfg.accounts.retain(|x| x.id != acc.id);
-        if a.cfg.selected.as_deref() == Some(&acc.id) {
+        a.cfg.accounts.iter().filter(|x| x.id == acc.id).count() > 1
+    })
+    .unwrap_or(true);
+    let dir = util::profiles_dir().join(&acc.id);
+    let mut leftover = None;
+    if !util::is_safe_id(&acc.id) || shared {
+        log(&format!("Không xóa thư mục dữ liệu vì id không hợp lệ hoặc bị trùng: {:?}", acc.id));
+    } else if dir.exists() {
+        if let Err(e) = std::fs::remove_dir_all(&dir) {
+            log(&format!("Xóa {} lỗi, thử lại: {e}", dir.display()));
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            if let Err(e) = std::fs::remove_dir_all(&dir) {
+                log(&format!("Không xóa hết được {}: {e}", dir.display()));
+                leftover = Some(dir);
+            }
+        }
+    }
+    with_app(|a| {
+        let pos = match a.cfg.accounts.get(idx) {
+            Some(x) if x.id == acc.id => Some(idx),
+            _ => a.cfg.index_of(&acc.id),
+        };
+        if let Some(pos) = pos {
+            a.cfg.accounts.remove(pos);
+        }
+        if a.cfg.selected.as_deref() == Some(&acc.id) && a.cfg.index_of(&acc.id).is_none() {
             a.cfg.selected = a.cfg.accounts.first().map(|x| x.id.clone());
         }
         a.cfg.save();
@@ -101,6 +121,15 @@ pub(crate) fn delete_account(idx: usize) {
         a.place_all();
         a.invalidate();
     });
+    if let Some(dir) = leftover {
+        msgbox(
+            &format!(
+                "Đã gỡ tài khoản khỏi danh sách nhưng chưa xóa hết dữ liệu. Hãy đóng các chương trình đang dùng thư mục này rồi xóa tay:\n\n{}",
+                dir.display()
+            ),
+            MB_OK | MB_ICONWARNING,
+        );
+    }
 }
 
 pub(crate) fn pick_exe() {

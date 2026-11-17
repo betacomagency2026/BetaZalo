@@ -1,6 +1,10 @@
+use std::fs::File;
+use std::io::{ErrorKind, Write};
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 
-use crate::util::{data_root, log};
+use crate::util::{data_root, log, stamp};
 
 fn yes() -> bool {
     true
@@ -46,6 +50,8 @@ pub struct Config {
     /// Thanh tài khoản thu gọn (chỉ hiện biểu tượng)
     #[serde(default)]
     pub sidebar_collapsed: bool,
+    #[serde(skip)]
+    pub read_only: bool,
 }
 
 impl Default for Config {
@@ -60,30 +66,63 @@ impl Default for Config {
             close_to_tray: true,
             tray_hint_shown: false,
             sidebar_collapsed: false,
+            read_only: false,
         }
     }
 }
 
+const READ_RETRIES: u32 = 3;
+
 impl Config {
     pub fn load() -> Config {
         let p = data_root().join("config.json");
-        match std::fs::read_to_string(&p) {
-            Ok(s) => serde_json::from_str(&s).unwrap_or_else(|e| {
+        let mut attempt = 0;
+        let bytes = loop {
+            match std::fs::read(&p) {
+                Ok(b) => break b,
+                Err(e) if e.kind() == ErrorKind::NotFound => return Config::default(),
+                Err(e) if attempt < READ_RETRIES => {
+                    log(&format!("Đọc config.json lỗi, thử lại: {e}"));
+                    attempt += 1;
+                    std::thread::sleep(Duration::from_millis(200));
+                }
+                Err(e) => {
+                    log(&format!("Không đọc được config.json, chạy chế độ không lưu: {e}"));
+                    return Config { read_only: true, ..Config::default() };
+                }
+            }
+        };
+        match serde_json::from_slice(&bytes) {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                let backup = data_root().join(format!("config.broken-{}.json", stamp()));
                 log(&format!("config.json lỗi, dùng mặc định: {e}"));
-                let _ = std::fs::copy(&p, data_root().join("config.broken.json"));
-                Config::default()
-            }),
-            Err(_) => Config::default(),
+                match std::fs::write(&backup, &bytes) {
+                    Ok(()) => Config::default(),
+                    Err(e) => {
+                        log(&format!("Không sao lưu được config.json, chạy chế độ không lưu: {e}"));
+                        Config { read_only: true, ..Config::default() }
+                    }
+                }
+            }
         }
     }
 
     pub fn save(&self) {
+        if self.read_only {
+            return;
+        }
         let p = data_root().join("config.json");
         let tmp = data_root().join("config.json.tmp");
-        if let Ok(s) = serde_json::to_string_pretty(self) {
-            if std::fs::write(&tmp, s).is_ok() {
-                let _ = std::fs::rename(&tmp, &p);
-            }
+        let result = serde_json::to_vec_pretty(self).map_err(std::io::Error::from).and_then(|s| {
+            let mut f = File::create(&tmp)?;
+            f.write_all(&s)?;
+            f.sync_all()?;
+            drop(f);
+            std::fs::rename(&tmp, &p)
+        });
+        if let Err(e) = result {
+            log(&format!("Không lưu được config.json: {e}"));
         }
     }
 

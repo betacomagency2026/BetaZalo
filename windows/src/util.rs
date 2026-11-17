@@ -1,7 +1,8 @@
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
+use windows_sys::Win32::Foundation::SYSTEMTIME;
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
 pub fn w(s: &str) -> Vec<u16> {
@@ -42,6 +43,10 @@ pub fn data_root() -> &'static PathBuf {
     })
 }
 
+pub fn is_safe_id(id: &str) -> bool {
+    !id.is_empty() && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
 pub fn profiles_dir() -> PathBuf {
     data_root().join("profiles")
 }
@@ -50,24 +55,36 @@ pub fn log_path() -> PathBuf {
     data_root().join("log.txt")
 }
 
-pub fn log(msg: &str) {
+fn local_time() -> SYSTEMTIME {
     unsafe {
         let mut t = std::mem::zeroed();
         GetLocalTime(&mut t);
-        let line = format!(
-            "{:04}-{:02}-{:02} {:02}:{:02}:{:02}  {}\r\n",
-            t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, msg
-        );
-        let p = log_path();
-        // giữ file log gọn: quá 1MB thì làm mới
-        if let Ok(m) = std::fs::metadata(&p) {
-            if m.len() > 1_000_000 {
-                let _ = std::fs::rename(&p, data_root().join("log.old.txt"));
-            }
+        t
+    }
+}
+
+pub fn stamp() -> String {
+    let t = local_time();
+    format!("{:04}{:02}{:02}-{:02}{:02}{:02}", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond)
+}
+
+static LOG_LOCK: Mutex<()> = Mutex::new(());
+
+pub fn log(msg: &str) {
+    let t = local_time();
+    let line = format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}  {}\r\n",
+        t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, msg
+    );
+    let _guard = LOG_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let p = log_path();
+    if let Ok(m) = std::fs::metadata(&p) {
+        if m.len() > 1_000_000 {
+            let _ = std::fs::rename(&p, data_root().join("log.old.txt"));
         }
-        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p) {
-            let _ = f.write_all(line.as_bytes());
-        }
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p) {
+        let _ = f.write_all(line.as_bytes());
     }
 }
 
