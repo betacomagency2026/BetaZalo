@@ -62,14 +62,14 @@ MultiZ miễn phí và không quảng cáo. Nếu thấy hữu ích, bạn có t
 
 ## Build
 
-Cần Rust (stable). Trên Windows:
+Cần Rust (stable) và `windres` của mingw-w64 (mặc định `x86_64-w64-mingw32-windres`, đổi bằng biến môi trường `WINDRES`). Chạy trong thư mục `windows/`:
 
 ```
 cargo build --release
 ```
 
-File chạy nằm ở `target\release\multiz.exe`. Biên dịch chéo từ Linux: target `x86_64-pc-windows-gnu` + mingw-w64.
+File chạy nằm ở `windows\target\release\multiz.exe`. Biên dịch chéo từ Linux: target `x86_64-pc-windows-gnu` + mingw-w64.
 
 ## Giấy phép
 
-MIT — Copyright (c) 2026 Sudo Software. Xem file `LICENSE`.
+MIT — Copyright (c) 2026 Sudo Software. Xem [LICENSE](../LICENSE).
