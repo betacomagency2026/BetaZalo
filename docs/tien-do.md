@@ -32,6 +32,7 @@ Plan `plans/20261117-pending-bug-fixes`: xong mã 5 phase. Windows build, clippy
   - Windows: tài khoản không nhúng được xử lý theo chế độ gắn kèm (di chuyển, focus, Zalo tự hiện cửa sổ); nút khởi động cùng Windows đọc và xóa trạng thái tắt trong Task Manager; hoãn hộp báo lỗi xóa dữ liệu khi hộp thoại tài khoản đang mở; dọn `.trash-*` không báo lỗi giả khi thư mục đã mất; lưu lựa chọn khi đăng xuất hoặc tắt máy; chỉ chặn khi MultiZ chạy nếu còn dữ liệu cần chuyển.
   - macOS: nhận lại phiên chỉ dựa vào PID và thời điểm khởi động (không phụ thuộc đường dẫn Zalo.app); kiểm tra id tài khoản, chặn dọn profile với id sai hoặc đang dùng; ghi LaunchAgent mới trước khi gỡ cái cũ, chỉ ghi khi nội dung đổi, báo khi tắt thất bại; không ghi lại config mỗi lần khởi động; gửi SIGTERM cho phiên đã xác minh khi không có `NSRunningApplication`; buộc tắt sau 8 giây, bỏ chờ sau 10 giây; chặn crash khi màu âm; bản mở lại trong lúc bản cũ đang thoát thì chờ bản cũ thoát hẳn.
 - Thêm workflow `build-mac.yml`: build bản macOS trên máy `macos-latest` của GitHub Actions (`macos-14` không còn được hỗ trợ). Lần chạy đầu biên dịch đạt, chỉ còn cảnh báo `fullPath(forApplication:)` đã lỗi thời; `Betacom-mac.zip` (universal, ký ad-hoc) lấy từ artifact.
+- Người dùng báo mở bản Mac không thấy gì. CI chạy thử trên macOS 26.7.2: app khởi động, có biểu tượng thanh menu và hộp thoại chào mừng. Sửa: mở lại Betacom khi đang chạy thì bật menu (`applicationShouldHandleReopen`, bản sao thứ hai gửi `DistributedNotification`), biểu tượng bị che thì bật menu tại con trỏ; lời chào nhắc trường hợp tai thỏ. Workflow thêm bước chạy thử: mở lần đầu, mở lại, mở bản sao thứ hai, kiểm tra chỉ một tiến trình và không có báo cáo crash, chụp màn hình.
 
 ## Việc tiếp theo
 
@@ -46,6 +47,7 @@ Plan `plans/20261117-pending-bug-fixes`: xong mã 5 phase. Windows build, clippy
 - Timeout UI Automation: cần `CUIAutomation8` và số liệu thời gian đọc p50/p95.
 - macOS M7 phần Keychain dùng chung: thử trên máy thật xem Zalo có ghi lẫn Keychain giữa các tài khoản không.
 - macOS: thay `NSWorkspace.fullPath(forApplication:)` đã lỗi thời bằng `urlForApplication(withBundleIdentifier:)`.
+- macOS: menu lặp mục "Chọn vị trí Zalo.app…" khi chưa tìm thấy Zalo.
 - Thống nhất hành vi xóa tài khoản giữa hai bản (Windows xóa hẳn, macOS chuyển vào Thùng rác).
 - Đánh giá độ bền của `watcher.rs` trước thay đổi bố cục giao diện Zalo.
 - Windows: Betacom thoát trong lúc chờ Zalo thoát khi xóa tài khoản thì thư mục profile bị bỏ lại (không tự xóa profile mồ côi để tránh mất dữ liệu khi config bị đặt lại).

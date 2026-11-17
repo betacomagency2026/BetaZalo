@@ -18,3 +18,4 @@
 - 2026-11-17: Windows: tài khoản không nhúng được chuyển riêng sang gắn kèm và mọi chỗ xử lý dùng chế độ của từng phiên; bật khởi động cùng Windows trong Betacom xóa trạng thái tắt trong Task Manager.
 - 2026-11-17: macOS: id tài khoản chỉ gồm chữ, số, `_`, `-` và không trùng; config có id sai được sao lưu rồi bỏ các tài khoản đó.
 - 2026-11-17: Bản macOS được build trên GitHub Actions (`.github/workflows/build-mac.yml`, `macos-latest`) khi `mac/**` đổi hoặc chạy tay; tải `Betacom-mac.zip` từ artifact của lần chạy.
+- 2026-11-17: macOS: mở lại Betacom khi đang chạy (cùng bản hoặc bản sao khác) thì bật menu thanh menu; biểu tượng bị che thì bật menu tại con trỏ chuột.
