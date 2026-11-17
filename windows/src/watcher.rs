@@ -73,7 +73,20 @@ fn normalize(s: &str) -> String {
     t.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-unsafe fn read_lines(uia: &IUIAutomation, hwnd: isize) -> windows::core::Result<Vec<Line>> {
+struct Query {
+    cond: IUIAutomationCondition,
+    cache: IUIAutomationCacheRequest,
+}
+
+unsafe fn build_query(uia: &IUIAutomation) -> windows::core::Result<Query> {
+    let cond = uia.CreatePropertyCondition(UIA_ControlTypePropertyId, &VARIANT::from(UIA_TextControlTypeId.0))?;
+    let cache = uia.CreateCacheRequest()?;
+    cache.AddProperty(UIA_NamePropertyId)?;
+    cache.AddProperty(UIA_BoundingRectanglePropertyId)?;
+    Ok(Query { cond, cache })
+}
+
+unsafe fn read_lines(uia: &IUIAutomation, q: &Query, hwnd: isize) -> windows::core::Result<Vec<Line>> {
     let h = HWND(hwnd as *mut _);
     let el = uia.ElementFromHandle(h)?;
     let mut wr = RECT::default();
@@ -84,14 +97,10 @@ unsafe fn read_lines(uia: &IUIAutomation, hwnd: isize) -> windows::core::Result<
     let x_max = ((480.0 * dpi).min(width * 0.55)) as i32;
     let y_min = (56.0 * dpi) as i32;
 
-    let cond = uia.CreatePropertyCondition(UIA_ControlTypePropertyId, &VARIANT::from(UIA_TextControlTypeId.0))?;
-    let cache = uia.CreateCacheRequest()?;
-    cache.AddProperty(UIA_NamePropertyId)?;
-    cache.AddProperty(UIA_BoundingRectanglePropertyId)?;
     // ưu tiên lấy kèm bộ đệm (nhanh); nếu hệ thống không hỗ trợ thì đọc từng phần tử
-    let (arr, cached) = match el.FindAllBuildCache(TreeScope_Descendants, &cond, &cache) {
+    let (arr, cached) = match el.FindAllBuildCache(TreeScope_Descendants, &q.cond, &q.cache) {
         Ok(a) => (a, true),
-        Err(_) => (el.FindAll(TreeScope_Descendants, &cond)?, false),
+        Err(_) => (el.FindAll(TreeScope_Descendants, &q.cond)?, false),
     };
     let n = arr.Length()?;
     let mut out = vec![];
@@ -138,6 +147,13 @@ pub fn start(notify_hwnd: isize) {
                 return;
             }
         };
+        let query = match build_query(&uia) {
+            Ok(q) => q,
+            Err(e) => {
+                log(&format!("Không tạo được truy vấn UI Automation: {e}"));
+                return;
+            }
+        };
         log("Bắt đầu theo dõi tin nhắn mới (UI Automation)");
         let mut states: HashMap<String, AccState> = HashMap::new();
         let mut logged_empty: HashSet<String> = HashSet::new();
@@ -155,7 +171,7 @@ pub fn start(notify_hwnd: isize) {
                     continue;
                 }
                 let started = Instant::now();
-                let lines = match read_lines(&uia, t.hwnd) {
+                let lines = match read_lines(&uia, &query, t.hwnd) {
                     Ok(l) => l,
                     Err(e) => {
                         let msg = format!("{}: đọc giao diện lỗi {e}", t.id);

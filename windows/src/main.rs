@@ -591,7 +591,7 @@ impl App {
                     if IsWindowVisible(s.hwnd) == 0 && IsWindowVisible(main) != 0 && IsIconic(main) == 0 {
                         s.hidden_ticks += 1;
                         if let Some(wi) = session::best_window(&pids, false, s.hwnd) {
-                            log(&format!("{id}: cửa sổ chính bị ẩn, chuyển sang cửa sổ mới '{}'", wi.title));
+                            log(&format!("{id}: cửa sổ chính bị ẩn, chuyển sang cửa sổ mới class='{}'", wi.class));
                             release(s);
                             adopt(s, &wi, embed, pane, main, true);
                         } else if s.hidden_ticks >= 5 {

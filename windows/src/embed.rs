@@ -144,10 +144,10 @@ pub(crate) fn adopt(s: &mut Session, wi: &session::WinInfo, embed: bool, pane: H
         s.ever_window = true;
         s.hidden_ticks = 0;
         log(&format!(
-            "Gắn cửa sổ pid={} class='{}' title='{}' ({})",
+            "Gắn cửa sổ pid={} class='{}' diện tích={} ({})",
             s.pid,
             wi.class,
-            wi.title,
+            wi.area,
             if embed { "nhúng" } else { "gắn kèm" }
         ));
         apply_mode(s, embed, pane, main);
