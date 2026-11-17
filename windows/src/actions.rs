@@ -124,11 +124,18 @@ pub(crate) fn delete_account(idx: usize) {
 
 static PURGE_LEFTOVERS: std::sync::Mutex<Vec<PathBuf>> = std::sync::Mutex::new(Vec::new());
 
+fn remove_dir(dir: &std::path::Path) -> std::io::Result<()> {
+    match std::fs::remove_dir_all(dir) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        r => r,
+    }
+}
+
 fn remove_with_retry(dir: &std::path::Path) -> std::io::Result<()> {
-    if let Err(e) = std::fs::remove_dir_all(dir) {
+    if let Err(e) = remove_dir(dir) {
         log(&format!("Xóa {} lỗi, thử lại: {e}", dir.display()));
         std::thread::sleep(Duration::from_secs(1));
-        return std::fs::remove_dir_all(dir);
+        return remove_dir(dir);
     }
     Ok(())
 }
@@ -166,12 +173,16 @@ fn purge_profile(dir: PathBuf, id: &str, job: Option<isize>) {
 pub(crate) fn sweep_trash() {
     std::thread::spawn(|| {
         let Ok(rd) = std::fs::read_dir(util::profiles_dir()) else { return };
-        for e in rd.flatten() {
-            if e.file_name().to_string_lossy().starts_with(".trash-") && e.path().is_dir() {
-                match std::fs::remove_dir_all(e.path()) {
-                    Ok(()) => log(&format!("Đã dọn {}", e.path().display())),
-                    Err(err) => log(&format!("Chưa dọn được {}: {err}", e.path().display())),
-                }
+        let dirs: Vec<PathBuf> = rd
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().starts_with(".trash-"))
+            .map(|e| e.path())
+            .filter(|p| p.is_dir())
+            .collect();
+        for p in dirs {
+            match remove_dir(&p) {
+                Ok(()) => log(&format!("Đã dọn {}", p.display())),
+                Err(err) => log(&format!("Chưa dọn được {}: {err}", p.display())),
             }
         }
     });
@@ -248,6 +259,32 @@ pub(crate) fn popup_menu(items: &[(u32, &str, bool, bool)], x: i32, y: i32) -> u
 pub(crate) const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const APPROVED_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";
 
+fn startup_disabled() -> bool {
+    let sub = w(APPROVED_KEY);
+    let n = w(APP_NAME);
+    let mut buf = [0u8; 64];
+    let mut len = buf.len() as u32;
+    unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            sub.as_ptr(),
+            n.as_ptr(),
+            RRF_RT_REG_BINARY,
+            null_mut(),
+            buf.as_mut_ptr() as *mut _,
+            &mut len,
+        ) == 0
+            && len > 0
+            && buf[0] & 1 == 1
+    }
+}
+
+fn clear_startup_approved() {
+    let sub = w(APPROVED_KEY);
+    let n = w(APP_NAME);
+    unsafe { RegDeleteKeyValueW(HKEY_CURRENT_USER, sub.as_ptr(), n.as_ptr()) };
+}
+
 fn move_startup_approved(old: &str) {
     let sub = w(APPROVED_KEY);
     let o = w(old);
@@ -289,12 +326,16 @@ pub(crate) fn migrate_autorun() {
             had_old = true;
         }
     }
-    if had_old || autorun_enabled() {
+    if had_old || run_value_exists() {
         set_autorun(true);
     }
 }
 
 pub(crate) fn autorun_enabled() -> bool {
+    run_value_exists() && !startup_disabled()
+}
+
+fn run_value_exists() -> bool {
     let sub = w(RUN_KEY);
     let val = w(APP_NAME);
     let mut len = 0u32;
@@ -406,7 +447,10 @@ pub(crate) fn settings_menu(x: i32, y: i32) {
                 a.cfg.save();
             });
         }
-        4 => set_autorun(!autorun),
+        4 => {
+            set_autorun(!autorun);
+            clear_startup_approved();
+        }
         5 => {
             msgbox(
                 &format!("Mỗi phiên Zalo vẫn tự hiện thông báo riêng, nhưng thông báo của Zalo không cho biết tin đến tài khoản nào.\n\nNếu thấy thông báo của {APP_NAME} hoạt động tốt, bạn có thể tắt thông báo của Zalo để không bị báo trùng:\nWindows Settings → System → Notifications → Zalo → Tắt.\n\nBấm OK để mở trang cài đặt thông báo của Windows."),

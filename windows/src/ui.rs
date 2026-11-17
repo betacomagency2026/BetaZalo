@@ -533,8 +533,8 @@ impl App {
                         )
                     }
                 }
-                Some(_) => {
-                    if self.cfg.embed {
+                Some(s) => {
+                    if s.mode.unwrap_or(self.cfg.embed) {
                         (String::new(), String::new(), vec![])
                     } else {
                         (

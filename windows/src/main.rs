@@ -49,6 +49,7 @@ pub const UPDATE_URL: &str = "https://github.com/betacomagency2026/BetaZalo/rele
 const MAIN_CLASS: &str = "BetacomMain";
 const PANE_CLASS: &str = "BetacomPane";
 const TIMER_TICK: usize = 1;
+const TIMER_PURGE: usize = 2;
 const WM_MOUSELEAVE_X: u32 = 0x02A3;
 const HSHELL_FLASH_X: usize = 0x8006;
 const NOTIFY_COOLDOWN: Duration = Duration::from_secs(8);
@@ -245,10 +246,12 @@ impl App {
     }
 
     fn embedded_selected(&self) -> HWND {
-        if !self.cfg.embed {
-            return null_mut();
-        }
-        self.selected_id().and_then(|id| self.sessions.get(&id).map(|s| s.hwnd)).unwrap_or(null_mut())
+        let embed = self.cfg.embed;
+        self.selected_id()
+            .and_then(|id| self.sessions.get(&id))
+            .filter(|s| s.mode.unwrap_or(embed))
+            .map(|s| s.hwnd)
+            .unwrap_or(null_mut())
     }
 
     fn layout(&mut self) {
@@ -564,6 +567,7 @@ impl App {
 
         for (id, s) in self.sessions.iter_mut() {
             let is_sel = Some(id) == sel.as_ref();
+            let embedded = s.mode.unwrap_or(embed);
             let pids = s.pids();
             if pids.is_empty() {
                 let quick = !s.ever_window && s.started.elapsed().as_secs() < 20;
@@ -609,7 +613,7 @@ impl App {
                         if IsIconic(s.hwnd) != 0 || IsZoomed(s.hwnd) != 0 {
                             ShowWindow(s.hwnd, SW_RESTORE);
                             place(s, embed, pane, main);
-                        } else if !embed
+                        } else if !embedded
                             && IsIconic(main) == 0
                             && IsWindowVisible(main) != 0
                             && GetAsyncKeyState(VK_LBUTTON as i32) >= 0
@@ -623,7 +627,7 @@ impl App {
                             }
                         }
                     }
-                } else if embed {
+                } else if embedded {
                     if IsWindowVisible(s.hwnd) == 0 && IsWindowVisible(main) != 0 {
                         park(s, embed, pane);
                     }
@@ -818,7 +822,7 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
         }
         WM_MOVE | WM_WINDOWPOSCHANGED => {
             let done = with_app(|a| {
-                if !a.cfg.embed {
+                if !a.cfg.embed || a.sessions.values().any(|s| s.mode == Some(false)) {
                     a.place_all();
                 }
             });
@@ -989,6 +993,9 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
         WM_TIMER => {
             if wp == TIMER_TICK {
                 with_app(|a| a.tick());
+            } else if wp == TIMER_PURGE {
+                KillTimer(hwnd, TIMER_PURGE);
+                PostMessageW(hwnd, WM_APP_PURGE_FAILED, 0, 0);
             }
             0
         }
@@ -1046,7 +1053,21 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
             0
         }
         WM_APP_PURGE_FAILED => {
-            report_purge_failures();
+            if IsWindowEnabled(hwnd) == 0 {
+                SetTimer(hwnd, TIMER_PURGE, 1000, None);
+            } else {
+                report_purge_failures();
+            }
+            0
+        }
+        WM_ENDSESSION => {
+            if wp != 0 {
+                with_app(|a| {
+                    if a.save_due.take().is_some() {
+                        a.cfg.save();
+                    }
+                });
+            }
             0
         }
         WM_DESTROY => {
@@ -1159,7 +1180,7 @@ fn main() {
             }
             return;
         }
-        if legacy_running() {
+        if util::migration_pending() && legacy_running() {
             let t = w(&format!(
                 "Bản MultiZ cũ đang chạy. Hãy thoát MultiZ (biểu tượng dưới khay hệ thống) rồi mở lại {APP_NAME} để dữ liệu được chuyển sang an toàn."
             ));

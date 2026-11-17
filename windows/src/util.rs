@@ -21,12 +21,24 @@ pub fn from_w(buf: &[u16]) -> String {
 static ROOT: OnceLock<PathBuf> = OnceLock::new();
 static MIGRATION_NOTE: OnceLock<String> = OnceLock::new();
 
+fn base_dir() -> PathBuf {
+    std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir)
+}
+
+fn legacy_dirs(base: &std::path::Path) -> Vec<PathBuf> {
+    ["MultiZ", "MultiZalo", "Zaloo"].iter().map(|n| base.join(n)).filter(|o| o.is_dir()).collect()
+}
+
+pub fn migration_pending() -> bool {
+    let base = base_dir();
+    !base.join("Betacom").exists() && !legacy_dirs(&base).is_empty()
+}
+
 pub fn data_root() -> &'static PathBuf {
     ROOT.get_or_init(|| {
-        let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
+        let base = base_dir();
         let p = base.join("Betacom");
-        let olds: Vec<PathBuf> =
-            ["MultiZ", "MultiZalo", "Zaloo"].iter().map(|n| base.join(n)).filter(|o| o.is_dir()).collect();
+        let olds = legacy_dirs(&base);
         if p.exists() {
             if !olds.is_empty() {
                 let _ = MIGRATION_NOTE.set(format!(
