@@ -1,0 +1,22 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mac/**"
+      - ".github/workflows/build-mac.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: swiftc --version
+      - run: bash mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Betacom-mac
+          path: mac/build/Betacom-mac.zip
+          if-no-files-found: error
