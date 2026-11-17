@@ -1,6 +1,6 @@
 # Sửa lỗi tồn đọng Windows và macOS
 
-Trạng thái: xong mã, chờ biên dịch macOS · Bắt đầu: 2026-11-17
+Trạng thái: xong mã, macOS biên dịch đạt trên CI, chờ chạy thử trên máy Mac · Bắt đầu: 2026-11-17
 
 Mục tiêu: sửa các lỗi đã xác nhận còn mở ở cả hai bản trước khi phát triển tính năng mới. Không đổi hành vi người dùng thấy được ngoài chỗ sửa lỗi.
 
@@ -13,13 +13,13 @@ Nguồn: rà soát sau đổi tên (`docs/tien-do.md`, mục "Việc tiếp theo
 | 1 | [Windows: bản cũ và chuyển dữ liệu](phase-01-win-legacy-migration.md) | mutex MultiZ, log chuyển dữ liệu, `StartupApproved` | xong |
 | 2 | [Windows: xóa tài khoản và lưu config](phase-02-win-delete-and-config.md) | xóa ở luồng phụ, `read_only`, lưu khi chọn | xong |
 | 3 | [Windows: thông báo và chi tiết giao diện](phase-03-win-notify-ui.md) | W8, cuộn, SetParent, mã lỗi, PRIVACY, comment | xong |
-| 4 | [macOS: vòng đời tiến trình](phase-04-mac-process-lifecycle.md) | M1, M2, M3, M5 | xong, chưa biên dịch |
-| 5 | [macOS: khởi động và lỗi nhỏ](phase-05-mac-startup-minor.md) | M4, M6, M7 (sửa link), M8, M9 | xong, chưa biên dịch |
+| 4 | [macOS: vòng đời tiến trình](phase-04-mac-process-lifecycle.md) | M1, M2, M3, M5 | xong, biên dịch đạt |
+| 5 | [macOS: khởi động và lỗi nhỏ](phase-05-mac-startup-minor.md) | M4, M6, M7 (sửa link), M8, M9 | xong, biên dịch đạt |
 
 ## Tiêu chí hoàn thành
 
 - Windows: `cargo build --release`, `cargo clippy --release` không cảnh báo, `cargo fmt --check` đạt.
-- macOS: mã Swift viết theo API có tài liệu; chưa biên dịch được trên máy này, cần `bash build.sh` trên macOS.
+- macOS: mã Swift viết theo API có tài liệu; biên dịch đạt trên GitHub Actions (`build-mac.yml`).
 - Mỗi phase Windows một commit; phase 4 và 5 chung một commit vì cùng sửa `ZaloLauncher.swift` và `AppDelegate.swift`.
 
 ## Ngoài phạm vi
