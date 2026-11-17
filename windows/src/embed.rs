@@ -1,5 +1,3 @@
-//! Gắn cửa sổ Zalo vào MultiZ: nhúng (cửa sổ con) hoặc gắn kèm (cửa sổ nổi đi theo).
-
 use super::*;
 
 pub(crate) fn apply_mode(s: &mut Session, embed: bool, pane: HWND, main: HWND) {

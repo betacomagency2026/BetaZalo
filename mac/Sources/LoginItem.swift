@@ -1,9 +1,9 @@
 import Foundation
 
-/// Mở MultiZ cùng máy Mac bằng một LaunchAgent nhỏ trong ~/Library/LaunchAgents.
+/// Mở Betacom cùng máy Mac bằng một LaunchAgent nhỏ trong ~/Library/LaunchAgents.
 /// Cách này chạy được từ macOS 12 và không cần quyền đặc biệt.
 enum LoginItem {
-    private static let label = "vn.sudo.multiz"
+    private static let label = "com.betacom.betazalo"
 
     private static var plistURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -23,16 +23,18 @@ enum LoginItem {
         }
     }
 
-    /// Ghi lại đường dẫn hiện tại của MultiZ (phòng khi người dùng đã chuyển app sang thư mục khác).
-    /// Đồng thời chuyển mục "mở cùng máy" của bản cũ (Zaloo) sang tên mới.
+    /// Ghi lại đường dẫn hiện tại của Betacom (phòng khi người dùng đã chuyển app sang thư mục khác).
     static func refreshIfEnabled() {
-        let old = plistURL.deletingLastPathComponent().appendingPathComponent("vn.sudo.zaloo.plist")
-        if FileManager.default.fileExists(atPath: old.path) {
-            try? FileManager.default.removeItem(at: old)
-            write()
-            return
+        let dir = plistURL.deletingLastPathComponent()
+        var hadOld = false
+        for name in ["vn.sudo.zaloo", "vn.sudo.multiz"] {
+            let old = dir.appendingPathComponent("\(name).plist")
+            if FileManager.default.fileExists(atPath: old.path) {
+                try? FileManager.default.removeItem(at: old)
+                hadOld = true
+            }
         }
-        if isEnabled { write() }
+        if hadOld || isEnabled { write() }
     }
 
     private static func write() {

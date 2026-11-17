@@ -1,6 +1,4 @@
 #![windows_subsystem = "windows"]
-//! MultiZ — chạy nhiều tài khoản Zalo PC trên một máy tính.
-//! Phát triển bởi Sudo Software — https://sudo.vn
 
 mod actions;
 mod avatar;
@@ -42,15 +40,14 @@ use embed::*;
 use tooltip::*;
 use ui::*;
 
-pub const APP_NAME: &str = "MultiZ";
+pub const APP_NAME: &str = "Betacom";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const DEVELOPER: &str = "Sudo Software";
-pub const DEVELOPER_URL: &str = "https://sudo.vn";
-pub const UPDATE_URL: &str = "https://seodoctor.vn/zaloo.html";
-pub const DONATE_URL: &str = "https://nguyencaotu.com/page/donate.html";
+pub const DEVELOPER: &str = "Betacom";
+pub const DEVELOPER_URL: &str = "https://github.com/betacomagency2026/BetaZalo";
+pub const UPDATE_URL: &str = "https://github.com/betacomagency2026/BetaZalo/releases";
 
-const MAIN_CLASS: &str = "MultiZMain";
-const PANE_CLASS: &str = "MultiZPane";
+const MAIN_CLASS: &str = "BetacomMain";
+const PANE_CLASS: &str = "BetacomPane";
 const TIMER_TICK: usize = 1;
 const WM_MOUSELEAVE_X: u32 = 0x02A3;
 const HSHELL_FLASH_X: usize = 0x8006;
@@ -70,7 +67,6 @@ enum Act {
     Download,
     PickExe,
     AddAcc,
-    Coffee,
     Developer,
     Toggle,
 }
@@ -190,7 +186,6 @@ impl App {
                 format!("{} — {}", a.name, st)
             }
             Hit::Btn(Act::AddAcc) if collapsed => "Thêm tài khoản".into(),
-            Hit::Btn(Act::Coffee) if collapsed => "Mời MultiZ ly cà phê".into(),
             Hit::Btn(Act::Toggle) => {
                 if collapsed {
                     "Mở rộng thanh tài khoản".into()
@@ -223,7 +218,6 @@ impl App {
         }
     }
 
-    /// Người dùng đang nhìn vào MultiZ?
     fn app_active(&self) -> bool {
         unsafe {
             if self.hidden_to_tray || IsWindowVisible(self.hwnd) == 0 || IsIconic(self.hwnd) != 0 {
@@ -976,7 +970,6 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
             0
         }
         WM_APP_FOCUS => {
-            // chỉ trao bàn phím cho Zalo khi MultiZ đang được dùng và không có hộp thoại mở
             if GetForegroundWindow() == hwnd && IsWindowEnabled(hwnd) != 0 {
                 if let Some(h) = with_app(|a| a.embedded_selected()) {
                     activate_child(h);
@@ -1036,7 +1029,7 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
                     tray::notify(
                         hwnd,
                         &format!("{APP_NAME} vẫn đang chạy"),
-                        "Bạn vẫn nhận được thông báo tin nhắn. Chuột phải biểu tượng MultiZ ở khay hệ thống để thoát.",
+                        "Bạn vẫn nhận được thông báo tin nhắn. Chuột phải biểu tượng Betacom ở khay hệ thống để thoát.",
                     );
                 }
             } else {
@@ -1125,8 +1118,7 @@ fn main() {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         let start_in_tray = std::env::args().any(|a| a == "--tray");
 
-        // chỉ cho chạy một MultiZ
-        let mname = w("Local\\SudoSoftware.MultiZ.SingleInstance");
+        let mname = w("Local\\Betacom.BetaZalo.SingleInstance");
         CreateMutexW(null(), 0, mname.as_ptr());
         if GetLastError() == ERROR_ALREADY_EXISTS {
             let c = w(MAIN_CLASS);

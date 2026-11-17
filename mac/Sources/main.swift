@@ -1,6 +1,3 @@
-// MultiZ cho Mac — chạy nhiều tài khoản Zalo trên một máy Mac.
-// Phát triển bởi Sudo Software — https://sudo.vn
-
 import AppKit
 
 let app = NSApplication.shared

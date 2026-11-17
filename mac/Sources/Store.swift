@@ -4,7 +4,7 @@ struct Account: Codable, Equatable {
     var id: String
     var name: String
     var color: Int
-    /// Mở lại tài khoản này khi MultiZ khởi động (tự bật khi mở, tự tắt khi bấm "Tắt").
+    /// Mở lại tài khoản này khi Betacom khởi động (tự bật khi mở, tự tắt khi bấm "Tắt").
     var reopen: Bool
 
     init(id: String, name: String, color: Int, reopen: Bool = true) {
@@ -23,7 +23,7 @@ struct Account: Codable, Equatable {
     }
 }
 
-/// Lưu danh sách tài khoản và cài đặt trong ~/Library/Application Support/MultiZ/config.json
+/// Lưu danh sách tài khoản và cài đặt trong ~/Library/Application Support/Betacom/config.json
 final class Store {
     static let shared = Store()
 
@@ -40,15 +40,16 @@ final class Store {
 
     private var configURL: URL { root.appendingPathComponent("config.json") }
 
-    /// ~/Library/Application Support/MultiZ
+    /// ~/Library/Application Support/Betacom
     static let rootURL: URL = {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let url = support.appendingPathComponent("MultiZ", isDirectory: true)
-        // Bản trước tên là Zaloo: chuyển thư mục cũ sang tên mới để giữ nguyên tài khoản.
-        let old = support.appendingPathComponent("Zaloo", isDirectory: true)
+        let url = support.appendingPathComponent("Betacom", isDirectory: true)
         let fm = FileManager.default
-        if !fm.fileExists(atPath: url.path) && fm.fileExists(atPath: old.path) {
-            try? fm.moveItem(at: old, to: url)
+        for name in ["MultiZ", "Zaloo"] where !fm.fileExists(atPath: url.path) {
+            let old = support.appendingPathComponent(name, isDirectory: true)
+            if fm.fileExists(atPath: old.path) {
+                try? fm.moveItem(at: old, to: url)
+            }
         }
         try? fm.createDirectory(at: url, withIntermediateDirectories: true)
         return url

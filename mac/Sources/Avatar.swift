@@ -2,7 +2,7 @@ import AppKit
 
 /// Ảnh đại diện trong menu: ảnh người dùng chọn, hoặc chữ viết tắt trên nền màu.
 enum Avatar {
-    /// (nền, chữ) — cùng bảng màu với MultiZ bản Windows.
+    /// (nền, chữ) — cùng bảng màu với Betacom bản Windows.
     static let palette: [(NSColor, NSColor)] = [
         (hex(0xE1F5EE), hex(0x085041)),
         (hex(0xEEEDFE), hex(0x3C3489)),

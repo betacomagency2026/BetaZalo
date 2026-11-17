@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Tổng quan
 
-MultiZ (Sudo Software, MIT, v0.3.4) chạy nhiều tài khoản Zalo PC gốc trên một máy; mỗi tài khoản một thư mục dữ liệu riêng, không sửa và không chèn mã vào Zalo. Hai bản độc lập, không chung mã:
+Betacom (v0.3.4, MIT, fork từ MultiZ của Sudo Software) chạy nhiều tài khoản Zalo PC gốc trên một máy; mỗi tài khoản một thư mục dữ liệu riêng, không sửa và không chèn mã vào Zalo. Hai bản độc lập, không chung mã:
 
 - `windows/`: Rust, Win32 thuần, không framework UI, xuất một file `.exe`.
 - `mac/`: Swift/AppKit, ứng dụng thanh menu, không có cửa sổ chính.
@@ -33,7 +33,7 @@ MultiZ (Sudo Software, MIT, v0.3.4) chạy nhiều tài khoản Zalo PC gốc tr
 Windows, chạy trong `windows/`:
 
 ```
-cargo build --release      # target/release/multiz.exe
+cargo build --release      # target/release/betacom.exe
 cargo fmt --check          # rustfmt.toml: max_width 120
 cargo clippy --release
 ```
@@ -44,14 +44,14 @@ cargo clippy --release
 macOS, chạy trong `mac/` (cần macOS và `xcode-select --install`):
 
 ```
-bash build.sh              # build/MultiZ.app, build/MultiZ-mac.zip (universal, ký ad-hoc)
+bash build.sh              # build/Betacom.app, build/Betacom-mac.zip (universal, ký ad-hoc)
 ```
 
 Số phiên bản nằm ở: `windows/Cargo.toml`; `windows/res/app.rc` (FILEVERSION, PRODUCTVERSION, chuỗi); `mac/Resources/Info.plist` (CFBundleShortVersionString, CFBundleVersion); giá trị dự phòng trong `mac/Sources/AppDelegate.swift`; `mac/README.md`. Nâng phiên bản phải sửa đồng bộ.
 
 ## Kiến trúc Windows
 
-**Tách tài khoản** (`session.rs`): `CreateProcessW` chạy Zalo.exe ở trạng thái suspended, khối môi trường ghi đè `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `TEMP`, `TMP`, `HOMEDRIVE`, `HOMEPATH` trỏ vào `%LOCALAPPDATA%\MultiZ\profiles\<id>`; tiến trình được gán vào Job Object (`KILL_ON_JOB_CLOSE`) rồi resume. PID của phiên luôn lấy từ Job Object (`Session::pids`) vì Zalo (Electron) sinh nhiều tiến trình con; job rỗng nghĩa là phiên đã thoát. Cửa sổ chính chọn bằng `best_window`: ưu tiên đang hiện, class `Chrome_WidgetWin_1`, diện tích lớn nhất.
+**Tách tài khoản** (`session.rs`): `CreateProcessW` chạy Zalo.exe ở trạng thái suspended, khối môi trường ghi đè `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `TEMP`, `TMP`, `HOMEDRIVE`, `HOMEPATH` trỏ vào `%LOCALAPPDATA%\Betacom\profiles\<id>`; tiến trình được gán vào Job Object (`KILL_ON_JOB_CLOSE`) rồi resume. PID của phiên luôn lấy từ Job Object (`Session::pids`) vì Zalo (Electron) sinh nhiều tiến trình con; job rỗng nghĩa là phiên đã thoát. Cửa sổ chính chọn bằng `best_window`: ưu tiên đang hiện, class `Chrome_WidgetWin_1`, diện tích lớn nhất.
 
 **Trạng thái và gọi lồng**: toàn bộ trạng thái nằm trong một `App` ở `thread_local!` `RefCell` (`main.rs`), chỉ truy cập qua `with_app`; hàm này trả `None` thay vì panic khi đang mượn lồng. Hộp thoại, `TrackPopupMenu`, `MessageBoxW` chạy vòng lặp thông điệp riêng nên window procedure bị gọi lồng. Các hàm trong `actions.rs` vì vậy chỉ mượn `App` trong phạm vi ngắn và không giữ mượn khi mở hộp thoại; thao tác mới phải theo cùng mẫu. Thông điệp bố cục (`WM_SIZE`, `WM_MOVE`, `WM_DPICHANGED`) đến khi `App` đang bị mượn thì được hoãn qua `defer_layout` (`WM_APP_RELAYOUT`).
 
@@ -61,7 +61,7 @@ Số phiên bản nằm ở: `windows/Cargo.toml`; `windows/res/app.rc` (FILEVER
 
 **Hai chế độ hiển thị** (`embed.rs`, `Config::embed`):
 
-- Nhúng: bỏ style khung, `SetParent` vào cửa sổ con `pane`. Tài khoản không chọn được đặt ở tọa độ âm nhưng vẫn hiển thị (`park`) để Chromium tiếp tục vẽ và UI Automation đọc được tin mới. Cửa sổ con không nhận kích hoạt từ Windows, nên MultiZ tự gửi `WM_NCACTIVATE`, `WM_ACTIVATE` và `SetFocus` qua `WM_APP_FOCUS` (`activate_child`).
+- Nhúng: bỏ style khung, `SetParent` vào cửa sổ con `pane`. Tài khoản không chọn được đặt ở tọa độ âm nhưng vẫn hiển thị (`park`) để Chromium tiếp tục vẽ và UI Automation đọc được tin mới. Cửa sổ con không nhận kích hoạt từ Windows, nên Betacom tự gửi `WM_NCACTIVATE`, `WM_ACTIVATE` và `SetFocus` qua `WM_APP_FOCUS` (`activate_child`).
 - Gắn kèm: đặt owner là cửa sổ chính, phủ đúng vùng `pane` và đi theo khi di chuyển; tài khoản không chọn bị ẩn.
 
 `release` khôi phục style gốc (`orig_style`, `orig_exstyle`) trước khi đổi chế độ hoặc gắn lại cửa sổ.
@@ -77,14 +77,14 @@ Số phiên bản nằm ở: `windows/Cargo.toml`; `windows/res/app.rc` (FILEVER
 
 **Tổ chức module**: `actions`, `embed`, `tooltip`, `ui` dùng `use super::*` và truy cập trực tiếp trường của `App`; các module còn lại độc lập, import qua `crate::`. Crate `windows` chỉ dùng cho COM/UI Automation trong `watcher.rs`; phần còn lại dùng `windows-sys`.
 
-**Dữ liệu và tương thích ngược**: `config.json` dùng serde, mọi trường có giá trị mặc định; lưu nguyên tử (ghi `.tmp`, `sync_all`, rồi đổi tên); file hỏng được sao sang `config.broken-<thời điểm>.json`; không đọc được file (khác lỗi không tồn tại) hoặc không sao lưu được thì `read_only` và `save()` không ghi. Xóa tài khoản chỉ xóa thư mục khi id hợp lệ (`util::is_safe_id`) và không trùng. `util::data_root` đổi tên thư mục cũ `Zaloo`/`MultiZalo` thành `MultiZ`; `migrate_autorun` chuyển khóa Run `Zaloo` sang `MultiZ`. Chỉ một bản chạy cùng lúc (mutex `Local\SudoSoftware.MultiZ.SingleInstance`); tham số `--tray` khởi động ẩn dưới khay.
+**Dữ liệu và tương thích ngược**: `config.json` dùng serde, mọi trường có giá trị mặc định; lưu nguyên tử (ghi `.tmp`, `sync_all`, rồi đổi tên); file hỏng được sao sang `config.broken-<thời điểm>.json`; không đọc được file (khác lỗi không tồn tại) hoặc không sao lưu được thì `read_only` và `save()` không ghi. Xóa tài khoản chỉ xóa thư mục khi id hợp lệ (`util::is_safe_id`) và không trùng. `util::data_root` đổi tên thư mục cũ `MultiZ`/`MultiZalo`/`Zaloo` thành `Betacom`; `migrate_autorun` chuyển khóa Run `MultiZ`/`Zaloo` sang `Betacom`. Chỉ một bản chạy cùng lúc (mutex `Local\Betacom.BetaZalo.SingleInstance`); tham số `--tray` khởi động ẩn dưới khay.
 
 ## Kiến trúc macOS
 
 Không nhúng cửa sổ, không phát hiện tin mới; chỉ mở, tắt và chuyển phiên Zalo từ menu trên thanh menu.
 
-- `ZaloLauncher.swift`: chạy executable của Zalo.app với `CFFIXED_USER_HOME`, `HOME`, `TMPDIR` trỏ vào `~/Library/Application Support/MultiZ/profiles/<id>`, bỏ `__CFBundleIdentifier` và `XPC_SERVICE_NAME`. `Library/Keychains` trong profile là symlink tới Keychain thật. PID ghi vào `profiles/<id>/zalo.pid` để `restore()` nhận lại phiên khi MultiZ khởi động lại. Chuyển tài khoản gồm `activate` và Apple Event reopen (cần quyền Automation).
-- `Store.swift`: `config.json` gồm `accounts` và `zaloPath`; cờ `reopen` tương ứng `autostart` của bản Windows. Xóa tài khoản chuyển profile vào Thùng rác, trong khi bản Windows xóa hẳn.
+- `ZaloLauncher.swift`: chạy executable của Zalo.app với `CFFIXED_USER_HOME`, `HOME`, `TMPDIR` trỏ vào `~/Library/Application Support/Betacom/profiles/<id>`, bỏ `__CFBundleIdentifier` và `XPC_SERVICE_NAME`. `Library/Keychains` trong profile là symlink tới Keychain thật. PID ghi vào `profiles/<id>/zalo.pid` để `restore()` nhận lại phiên khi Betacom khởi động lại. Chuyển tài khoản gồm `activate` và Apple Event reopen (cần quyền Automation).
+- `Store.swift`: chuyển thư mục cũ `MultiZ`/`Zaloo` sang `Betacom`; `config.json` gồm `accounts` và `zaloPath`; cờ `reopen` tương ứng `autostart` của bản Windows. Xóa tài khoản chuyển profile vào Thùng rác, trong khi bản Windows xóa hẳn.
 - `Avatar.palette` phải trùng `COLORS` trong `windows/src/config.rs`.
-- Mở cùng máy bằng LaunchAgent `~/Library/LaunchAgents/vn.sudo.multiz.plist`.
+- Mở cùng máy bằng LaunchAgent `~/Library/LaunchAgents/com.betacom.betazalo.plist` (bundle id cùng tên); LaunchAgent cũ `vn.sudo.multiz`, `vn.sudo.zaloo` bị gỡ khi khởi động.
 

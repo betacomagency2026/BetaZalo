@@ -3,7 +3,7 @@ import AppKit
 /// Mở, tắt và chuyển giữa các phiên Zalo.
 ///
 /// Mỗi tài khoản chạy Zalo gốc với "thư mục nhà" riêng: biến môi trường
-/// CFFIXED_USER_HOME khiến Zalo lưu dữ liệu vào ~/Library/Application Support/MultiZ/profiles/<id>
+/// CFFIXED_USER_HOME khiến Zalo lưu dữ liệu vào ~/Library/Application Support/Betacom/profiles/<id>
 /// thay vì thư mục của người dùng, nên các tài khoản không lẫn vào nhau.
 final class ZaloLauncher {
     private var pids: [String: pid_t] = [:]
@@ -58,7 +58,7 @@ final class ZaloLauncher {
         store.profileURL(id).appendingPathComponent("zalo.pid")
     }
 
-    /// Nhận lại các phiên Zalo vẫn đang chạy từ lần mở MultiZ trước.
+    /// Nhận lại các phiên Zalo vẫn đang chạy từ lần mở Betacom trước.
     func restore() {
         guard let exe = zaloApp().flatMap({ Bundle(url: $0)?.executableURL }) else { return }
         for account in store.accounts {
@@ -90,7 +90,7 @@ final class ZaloLauncher {
         env["CFFIXED_USER_HOME"] = home.path
         env["HOME"] = home.path
         env["TMPDIR"] = home.appendingPathComponent("tmp").path + "/"
-        // Không để Zalo "mượn" danh tính của MultiZ.
+        // Không để Zalo "mượn" danh tính của Betacom.
         env["__CFBundleIdentifier"] = nil
         env["XPC_SERVICE_NAME"] = nil
 
@@ -139,7 +139,7 @@ final class ZaloLauncher {
         app.unhide()
         app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
         // Nếu cửa sổ Zalo đã bị đóng (Zalo vẫn chạy nền), yêu cầu Zalo mở lại cửa sổ.
-        // Lần đầu macOS sẽ hỏi quyền "MultiZ muốn điều khiển Zalo".
+        // Lần đầu macOS sẽ hỏi quyền "Betacom muốn điều khiển Zalo".
         sendReopen(to: pid)
     }
 
@@ -174,7 +174,7 @@ final class ZaloLauncher {
         var errorDescription: String? {
             switch self {
             case .zaloNotFound:
-                return "Chưa tìm thấy Zalo trên máy. Hãy cài Zalo cho Mac, hoặc chọn vị trí Zalo.app trong menu MultiZ."
+                return "Chưa tìm thấy Zalo trên máy. Hãy cài Zalo cho Mac, hoặc chọn vị trí Zalo.app trong menu Betacom."
             }
         }
     }

@@ -110,7 +110,7 @@ pub fn start(exe: &Path, profile: &Path) -> Result<Session, String> {
         ("TMP", p("AppData\\Local\\Temp")),
         ("HOMEDRIVE", drive),
         ("HOMEPATH", homepath),
-        ("MULTIZALO_PROFILE", profile.to_string_lossy().to_string()),
+        ("BETACOM_PROFILE", profile.to_string_lossy().to_string()),
     ];
     for (k, v) in overrides {
         env.insert(k.to_string(), (k.to_string(), v));

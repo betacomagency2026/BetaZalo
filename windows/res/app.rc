@@ -11,15 +11,15 @@ BEGIN
   BEGIN
     BLOCK "040904B0"
     BEGIN
-      VALUE "CompanyName", "Sudo Software"
-      VALUE "FileDescription", "MultiZ"
-      VALUE "ProductName", "MultiZ"
+      VALUE "CompanyName", "Betacom"
+      VALUE "FileDescription", "Betacom"
+      VALUE "ProductName", "Betacom"
       VALUE "FileVersion", "0.3.4"
       VALUE "ProductVersion", "0.3.4"
-      VALUE "OriginalFilename", "MultiZ.exe"
-      VALUE "InternalName", "MultiZ"
-      VALUE "LegalCopyright", "Copyright (c) 2026 Sudo Software. MIT License"
-      VALUE "Comments", "https://sudo.vn"
+      VALUE "OriginalFilename", "betacom.exe"
+      VALUE "InternalName", "Betacom"
+      VALUE "LegalCopyright", "Copyright (c) 2026 Betacom. MIT License"
+      VALUE "Comments", "https://github.com/betacomagency2026/BetaZalo"
     END
   END
   BLOCK "VarFileInfo"

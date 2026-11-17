@@ -2,7 +2,7 @@
 
 ## Trạng thái
 
-Plan `plans/20261117-windows-hardening`: xong mã cả 6 phase; build, clippy, fmt đạt; chưa kiểm thử tay với Zalo thật.
+Plan `plans/20261117-windows-hardening`: xong mã cả 6 phase; build, clippy, fmt đạt; chưa kiểm thử tay với Zalo thật. Đã đổi tên sản phẩm thành Betacom.
 
 ## Nhật ký
 
@@ -19,9 +19,13 @@ Plan `plans/20261117-windows-hardening`: xong mã cả 6 phase; build, clippy, f
 - Phase 5: watcher tạo truy vấn UI Automation một lần; bỏ tiêu đề cửa sổ Zalo khỏi log.
 - Phase 6: cắt chuỗi khay không tách cặp surrogate; Enter trên nút Hủy đóng hộp thoại như Hủy.
 - Kiểm tra: `cargo build --release`, `cargo clippy --release` không cảnh báo, `cargo fmt --check` đạt. Bản macOS chưa kiểm chứng (máy không có Swift).
+- Đổi tên MultiZ thành Betacom (mã, tài nguyên exe, bundle macOS, tài liệu, LICENSE); bỏ nút và mục menu "Mời cà phê"; chuyển dữ liệu, mục khởi động cùng Windows và LaunchAgent của bản MultiZ sang tên mới. Build, clippy, fmt bản Windows đạt; bản macOS chưa biên dịch thử.
 
 ## Việc tiếp theo
 
+- Kiểm thử tay việc đổi tên: thoát bản MultiZ, mở `betacom.exe`; dữ liệu `%LOCALAPPDATA%\MultiZ` chuyển sang `Betacom`, tài khoản giữ đăng nhập, thanh bên không còn nút cà phê.
+- Biên dịch thử bản macOS sau khi đổi tên (bundle id mới, LaunchAgent mới, chuyển thư mục `MultiZ`).
+- Cung cấp website chính thức của Betacom nếu có, thay liên kết GitHub ở "Trang chủ Betacom".
 - Chạy 7 mục kiểm thử tay trong `plans/20261117-windows-hardening/plan.md` trên máy có Zalo.
 - Các mục hoãn cần thử với Zalo thật: M2 (ẩn cửa sổ khi xuống khay, chế độ gắn kèm), bỏ `BREAKAWAY_OK`, đóng Zalo êm khi tắt máy (M7, W9), Folder Redirection (L10), chọn nhầm cửa sổ phụ (M9), menu khay mở hai lần (L1).
 - Timeout UI Automation: cần `CUIAutomation8` và số liệu thời gian đọc p50/p95.

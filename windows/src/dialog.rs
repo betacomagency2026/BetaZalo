@@ -193,7 +193,7 @@ unsafe fn do_ok(hwnd: HWND) {
 pub fn account_dialog(owner: HWND, heading: &str, name: &str, color: usize, ok_label: &str) -> Option<(String, usize)> {
     unsafe {
         let hinst = GetModuleHandleW(null());
-        let cls = w("MultiZDialog");
+        let cls = w("BetacomDialog");
         let mut wc: WNDCLASSEXW = std::mem::zeroed();
         wc.cbSize = std::mem::size_of::<WNDCLASSEXW>() as u32;
         wc.lpfnWndProc = Some(dlg_proc);

@@ -198,17 +198,22 @@ pub(crate) fn popup_menu(items: &[(u32, &str, bool, bool)], x: i32, y: i32) -> u
 // ---- khởi động cùng Windows ----
 pub(crate) const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 
-/// Bản cũ đăng ký khởi động cùng Windows với tên "Zaloo": chuyển sang tên mới.
 pub(crate) fn migrate_autorun() {
     let sub = w(RUN_KEY);
-    let old = w("Zaloo");
-    let mut len = 0u32;
-    let had_old = unsafe {
-        RegGetValueW(HKEY_CURRENT_USER, sub.as_ptr(), old.as_ptr(), RRF_RT_REG_SZ, null_mut(), null_mut(), &mut len)
-            == 0
-    };
+    let mut had_old = false;
+    for name in ["Zaloo", "MultiZ"] {
+        let old = w(name);
+        let mut len = 0u32;
+        let found = unsafe {
+            RegGetValueW(HKEY_CURRENT_USER, sub.as_ptr(), old.as_ptr(), RRF_RT_REG_SZ, null_mut(), null_mut(), &mut len)
+                == 0
+        };
+        if found {
+            unsafe { RegDeleteKeyValueW(HKEY_CURRENT_USER, sub.as_ptr(), old.as_ptr()) };
+            had_old = true;
+        }
+    }
     if had_old {
-        unsafe { RegDeleteKeyValueW(HKEY_CURRENT_USER, sub.as_ptr(), old.as_ptr()) };
         set_autorun(true);
     } else if autorun_enabled() {
         // cập nhật đường dẫn nếu file .exe đã đổi tên / đổi chỗ
@@ -249,6 +254,7 @@ pub(crate) fn set_autorun(on: bool) {
 
 pub(crate) const LICENSE_TEXT: &str = "Giấy phép MIT (MIT License)
 
+Copyright (c) 2026 Betacom
 Copyright (c) 2026 Sudo Software — https://sudo.vn
 
 Được phép sử dụng, sao chép, chỉnh sửa, gộp, xuất bản, phân phối, cấp phép lại và/hoặc bán bản sao của phần mềm này, miễn phí, với điều kiện giữ nguyên thông báo bản quyền và giấy phép này trong mọi bản sao.
@@ -256,9 +262,9 @@ Copyright (c) 2026 Sudo Software — https://sudo.vn
 PHẦN MỀM ĐƯỢC CUNG CẤP \"NGUYÊN TRẠNG\", KHÔNG KÈM BẤT KỲ BẢO ĐẢM NÀO. TÁC GIẢ KHÔNG CHỊU TRÁCH NHIỆM VỀ BẤT KỲ THIỆT HẠI NÀO PHÁT SINH TỪ VIỆC SỬ DỤNG PHẦN MỀM.
 
 Lưu ý:
-• MultiZ là phần mềm độc lập, không phải sản phẩm chính thức và không liên kết với Zalo / VNG.
+• Betacom là phần mềm độc lập, không phải sản phẩm chính thức và không liên kết với Zalo / VNG.
 • \"Zalo\" là nhãn hiệu của chủ sở hữu tương ứng.
-• MultiZ chạy ứng dụng Zalo PC gốc do người dùng tự cài đặt; người dùng tự chịu trách nhiệm tuân thủ điều khoản sử dụng của Zalo.
+• Betacom chạy ứng dụng Zalo PC gốc do người dùng tự cài đặt; người dùng tự chịu trách nhiệm tuân thủ điều khoản sử dụng của Zalo.
 
 Bản tiếng Anh đầy đủ của giấy phép có trong file LICENSE của mã nguồn.";
 
@@ -304,10 +310,9 @@ pub(crate) fn settings_menu(x: i32, y: i32) {
         (9, "Mở thư mục dữ liệu", false, true),
         (0, "", false, true),
         (16, "Kiểm tra phiên bản mới…", false, true),
-        (12, "Trang chủ Sudo Software", false, true),
-        (15, "Mời MultiZ ly cà phê…", false, true),
+        (12, "Trang chủ Betacom", false, true),
         (13, "Giấy phép", false, true),
-        (14, "Giới thiệu MultiZ", false, true),
+        (14, "Giới thiệu Betacom", false, true),
     ];
     match popup_menu(&items, x, y) {
         1 => {
@@ -346,7 +351,6 @@ pub(crate) fn settings_menu(x: i32, y: i32) {
         9 => open_path(&util::data_root().to_string_lossy()),
         16 => open_path(UPDATE_URL),
         12 => open_path(DEVELOPER_URL),
-        15 => open_path(DONATE_URL),
         13 => {
             msgbox(LICENSE_TEXT, MB_OK | MB_ICONINFORMATION);
         }
@@ -374,7 +378,7 @@ pub(crate) fn account_menu(idx: usize, x: i32, y: i32) {
         (8, "Đổi ảnh đại diện…", false, true),
         (9, "Dùng lại chữ viết tắt", false, has_avatar),
         (7, "Tắt thông báo của tài khoản này", acc.muted, true),
-        (4, "Tự mở khi khởi động MultiZ", acc.autostart, true),
+        (4, "Tự mở khi khởi động Betacom", acc.autostart, true),
         (5, "Mở thư mục dữ liệu của tài khoản", false, true),
         (0, "", false, true),
         (6, "Xóa tài khoản…", false, true),
@@ -428,10 +432,10 @@ pub(crate) fn account_menu(idx: usize, x: i32, y: i32) {
 pub(crate) fn tray_menu(x: i32, y: i32) {
     let Some(notify) = with_app(|a| a.cfg.notify) else { return };
     let items = [
-        (1, "Mở MultiZ", false, true),
+        (1, "Mở Betacom", false, true),
         (2, "Thông báo khi có tin nhắn mới", notify, true),
         (0, "", false, true),
-        (3, "Thoát MultiZ", false, true),
+        (3, "Thoát Betacom", false, true),
     ];
     match popup_menu(&items, x, y) {
         1 => {
@@ -489,7 +493,6 @@ pub(crate) fn do_hit(hit: Hit, screen_pt: POINT) {
                 Act::Download => open_path("https://zalo.me/pc"),
                 Act::PickExe => pick_exe(),
                 Act::Developer => open_path(DEVELOPER_URL),
-                Act::Coffee => open_path(DONATE_URL),
                 Act::Toggle => {
                     with_app(|a| a.toggle_sidebar());
                 }

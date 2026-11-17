@@ -7,3 +7,7 @@
 - 2026-11-17: Các thay đổi phụ thuộc hành vi Zalo thật (M2, BREAKAWAY_OK, M7/W9, M9, L1, L10, timeout UI Automation) hoãn tới khi kiểm thử được.
 - 2026-11-17: Tắt phiên không chờ trên luồng UI; quá 10 giây chưa thoát thì đóng handle, báo lỗi, không mở lại.
 - 2026-11-17: Không đọc được `config.json` (khác lỗi không tồn tại) thì chạy chế độ không lưu để tránh ghi đè danh sách tài khoản.
+- 2026-11-17: Đổi tên sản phẩm MultiZ thành Betacom trên cả hai bản; bỏ mục "Mời cà phê".
+- 2026-11-17: LICENSE giữ dòng bản quyền Sudo Software bên cạnh Betacom vì MIT bắt buộc giữ thông báo bản quyền gốc.
+- 2026-11-17: Liên kết trang chủ và kiểm tra phiên bản trỏ tới repo GitHub `betacomagency2026/BetaZalo` (trang releases).
+- 2026-11-17: Định danh mới: exe `betacom.exe`, thư mục dữ liệu `Betacom`, mutex `Local\Betacom.BetaZalo.SingleInstance`, bundle id và LaunchAgent `com.betacom.betazalo`; dữ liệu và mục khởi động của bản MultiZ được tự chuyển sang.

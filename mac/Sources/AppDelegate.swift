@@ -4,9 +4,8 @@ import UniformTypeIdentifiers
 let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.3.4"
 
 enum Links {
-    static let developer = URL(string: "https://sudo.vn")!
-    static let donate = URL(string: "https://nguyencaotu.com/page/donate.html")!
-    static let update = URL(string: "https://seodoctor.vn/zaloo.html")!
+    static let developer = URL(string: "https://github.com/betacomagency2026/BetaZalo")!
+    static let update = URL(string: "https://github.com/betacomagency2026/BetaZalo/releases")!
     static let zaloDownload = URL(string: "https://zalo.me/pc")!
 }
 
@@ -18,17 +17,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Khởi động
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        writeLog("=== MultiZ \(appVersion) khởi động ===")
+        writeLog("=== Betacom \(appVersion) khởi động ===")
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            if let icon = NSImage(systemSymbolName: "bubble.left.and.bubble.right.fill", accessibilityDescription: "MultiZ") {
+            if let icon = NSImage(systemSymbolName: "bubble.left.and.bubble.right.fill", accessibilityDescription: "Betacom") {
                 icon.isTemplate = true
                 button.image = icon
             } else {
-                button.title = "MultiZ"
+                button.title = "Betacom"
             }
-            button.toolTip = "MultiZ – nhiều tài khoản Zalo"
+            button.toolTip = "Betacom – nhiều tài khoản Zalo"
         }
         let menu = NSMenu()
         menu.delegate = self
@@ -52,11 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func welcome() {
         let message = """
-        MultiZ đã nằm trên thanh menu, ở góc trên bên phải màn hình (biểu tượng hai bong bóng chat).
+        Betacom đã nằm trên thanh menu, ở góc trên bên phải màn hình (biểu tượng hai bong bóng chat).
 
         Bấm vào biểu tượng đó → "Thêm tài khoản…" để mở một Zalo mới, rồi quét mã QR bằng điện thoại.
         """
-        Prompt.info("Chào mừng bạn đến với MultiZ", message)
+        Prompt.info("Chào mừng bạn đến với Betacom", message)
         if launcher.zaloApp() == nil { askForZalo() }
     }
 
@@ -66,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
 
         let running = launcher.runningCount
-        let header = running == 0 ? "MultiZ" : "MultiZ · \(running) tài khoản đang chạy"
+        let header = running == 0 ? "Betacom" : "Betacom · \(running) tài khoản đang chạy"
         menu.addItem(disabled(header))
         menu.addItem(.separator())
 
@@ -98,7 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        let login = item("Mở MultiZ cùng máy Mac", #selector(toggleLogin))
+        let login = item("Mở Betacom cùng máy Mac", #selector(toggleLogin))
         login.state = LoginItem.isEnabled ? .on : .off
         menu.addItem(login)
         menu.addItem(item("Chọn vị trí Zalo.app…", #selector(chooseZalo)))
@@ -106,12 +105,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(item("Kiểm tra phiên bản mới…", #selector(openLink(_:)), link: Links.update))
-        menu.addItem(item("Mời MultiZ ly cà phê…", #selector(openLink(_:)), link: Links.donate))
-        menu.addItem(item("Phát triển bởi Sudo Software", #selector(openLink(_:)), link: Links.developer))
-        menu.addItem(item("Giới thiệu MultiZ", #selector(about)))
+        menu.addItem(item("Phát triển bởi Betacom", #selector(openLink(_:)), link: Links.developer))
+        menu.addItem(item("Giới thiệu Betacom", #selector(about)))
 
         menu.addItem(.separator())
-        menu.addItem(item("Thoát MultiZ", #selector(quit), key: "q"))
+        menu.addItem(item("Thoát Betacom", #selector(quit), key: "q"))
     }
 
     private func manageMenu() -> NSMenu {
@@ -278,7 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "Chưa tìm thấy Zalo trên máy"
-        alert.informativeText = "MultiZ dùng chính ứng dụng Zalo cho Mac. Hãy cài Zalo (bản tải từ zalo.me), hoặc chỉ cho MultiZ biết vị trí Zalo.app."
+        alert.informativeText = "Betacom dùng chính ứng dụng Zalo cho Mac. Hãy cài Zalo (bản tải từ zalo.me), hoặc chỉ cho Betacom biết vị trí Zalo.app."
         alert.addButton(withTitle: "Tải Zalo cho Mac")
         alert.addButton(withTitle: "Chọn Zalo.app…")
         alert.addButton(withTitle: "Để sau")
@@ -307,34 +305,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let message = """
         Chạy nhiều tài khoản Zalo trên cùng một máy Mac.
 
-        Phát triển bởi Sudo Software — https://sudo.vn
+        Phát triển bởi Betacom — https://github.com/betacomagency2026/BetaZalo
         Giấy phép MIT — miễn phí, mã nguồn mở, không quảng cáo.
 
         Quyền riêng tư:
-        • MultiZ không kết nối Internet và không thu thập dữ liệu gì.
+        • Betacom không kết nối Internet và không thu thập dữ liệu gì.
         • Mỗi tài khoản Zalo có một thư mục dữ liệu riêng trên máy bạn.
-        • MultiZ không sửa và không chèn mã vào Zalo.
+        • Betacom không sửa và không chèn mã vào Zalo.
 
-        MultiZ không phải sản phẩm chính thức của Zalo / VNG.
+        Betacom không phải sản phẩm chính thức của Zalo / VNG.
 
         Zalo: \(zalo)
         Dữ liệu: \(store.root.path)
         """
-        Prompt.info("MultiZ \(appVersion)", message)
+        Prompt.info("Betacom \(appVersion)", message)
     }
 
     @objc private func quit() {
         if launcher.runningCount > 0 {
             NSApp.activate(ignoringOtherApps: true)
             let alert = NSAlert()
-            alert.messageText = "Thoát MultiZ"
+            alert.messageText = "Thoát Betacom"
             alert.informativeText = "Đang có \(launcher.runningCount) tài khoản Zalo chạy. Bạn muốn tắt luôn các Zalo này không?"
             alert.addButton(withTitle: "Tắt Zalo và thoát")
-            alert.addButton(withTitle: "Chỉ thoát MultiZ")
+            alert.addButton(withTitle: "Chỉ thoát Betacom")
             alert.addButton(withTitle: "Hủy")
             switch alert.runModal() {
             case .alertFirstButtonReturn:
-                // Lần sau mở MultiZ vẫn tự mở lại các tài khoản này.
+                // Lần sau mở Betacom vẫn tự mở lại các tài khoản này.
                 launcher.stopAll(rememberForNextLaunch: true)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) { NSApp.terminate(nil) }
                 return

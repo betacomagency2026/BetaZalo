@@ -2,7 +2,7 @@
 
 Chạy nhiều tài khoản **Zalo PC** trên cùng một máy tính. Mỗi tài khoản dùng một thư mục dữ liệu riêng; ứng dụng Zalo gốc không bị sửa và không bị chèn mã.
 
-Fork từ **MultiZ** v0.3.4 của Sudo Software (https://sudo.vn), giấy phép MIT.
+Phát triển bởi **Betacom** — https://github.com/betacomagency2026/BetaZalo
 
 | Nền tảng | Thư mục | Công nghệ | Tài liệu |
 |---|---|---|---|

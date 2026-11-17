@@ -1,8 +1,8 @@
-# MultiZ
+# Betacom
 
 Chạy nhiều tài khoản **Zalo PC** trên cùng một máy tính Windows. Mỗi tài khoản có một vùng dữ liệu riêng và hiện thành một tab ở thanh bên trái.
 
-Phát triển bởi **Sudo Software** — https://sudo.vn
+Phát triển bởi **Betacom** — https://github.com/betacomagency2026/BetaZalo
 
 - Dùng chính **ứng dụng Zalo PC gốc**: không sửa Zalo, không chèn mã vào Zalo.
 - Mỗi tài khoản một thư mục dữ liệu riêng, không lẫn phiên đăng nhập.
@@ -13,38 +13,36 @@ Phát triển bởi **Sudo Software** — https://sudo.vn
 - Một file `.exe` khoảng 0,5 MB, không cần cài, không cần quyền Admin.
 - **Miễn phí, mã nguồn mở, không quảng cáo, không kết nối Internet.** Xem [PRIVACY.md](PRIVACY.md).
 
-> MultiZ là phần mềm độc lập, không phải sản phẩm chính thức và không liên kết với Zalo / VNG. "Zalo" là nhãn hiệu của chủ sở hữu tương ứng.
+> Betacom là phần mềm độc lập, không phải sản phẩm chính thức và không liên kết với Zalo / VNG. "Zalo" là nhãn hiệu của chủ sở hữu tương ứng.
 
 ## Cách dùng
 
 1. Cài Zalo PC bản chính thức (https://zalo.me/pc) nếu máy chưa có.
-2. Giải nén file `.zip`, mở `MultiZ.exe`. Lần đầu Windows có thể hiện "Windows protected your PC": bấm **More info → Run anyway**.
+2. Giải nén file `.zip`, mở `betacom.exe`. Lần đầu Windows có thể hiện "Windows protected your PC": bấm **More info → Run anyway**.
 3. Bấm **Thêm tài khoản**, đặt tên, rồi quét mã QR bằng Zalo trên điện thoại.
 4. Thêm các tài khoản khác tương tự. Bấm vào tab bên trái để chuyển tài khoản.
 
 Mẹo:
 
 - Chuột phải vào một tài khoản để đổi tên, đổi màu, **đổi ảnh đại diện**, tắt thông báo riêng, bật/tắt tự mở hoặc xóa.
-- Nút **«** cạnh chữ MultiZ để thu gọn thanh tài khoản, **»** để mở rộng lại.
+- Nút **«** cạnh chữ Betacom để thu gọn thanh tài khoản, **»** để mở rộng lại.
 - **Cài đặt**: thông báo, ẩn nội dung tin trong thông báo, chạy ẩn dưới khay, khởi động cùng Windows.
 - Bấm **Tắt** để tắt một tài khoản; tài khoản đó giữ nguyên trạng thái tắt cho tới khi bạn bấm **Mở Zalo**.
-- **Cài đặt → Kiểm tra phiên bản mới** mở trang https://seodoctor.vn/zaloo.html (MultiZ không tự kết nối mạng để kiểm tra).
+- **Cài đặt → Kiểm tra phiên bản mới** mở trang https://github.com/betacomagency2026/BetaZalo/releases (Betacom không tự kết nối mạng để kiểm tra).
 - Nếu Zalo hiện trắng/đen hoặc không gõ được chữ khi nhúng: **Cài đặt → Hiển thị: cửa sổ Zalo gắn kèm**.
-- Bấm X thì MultiZ chạy ẩn dưới khay để vẫn nhận thông báo. Muốn thoát hẳn: chuột phải biểu tượng MultiZ ở khay → **Thoát MultiZ**.
-
-## Ủng hộ
-
-MultiZ miễn phí và không quảng cáo. Nếu thấy hữu ích, bạn có thể mời nhóm phát triển một ly cà phê: https://nguyencaotu.com/page/donate.html
+- Bấm X thì Betacom chạy ẩn dưới khay để vẫn nhận thông báo. Muốn thoát hẳn: chuột phải biểu tượng Betacom ở khay → **Thoát Betacom**.
 
 ## Dữ liệu
 
 ```
-%LOCALAPPDATA%\MultiZ\
+%LOCALAPPDATA%\Betacom\
   config.json                     cài đặt + danh sách tài khoản
   log.txt                         nhật ký kỹ thuật (không chứa tin nhắn)
   profiles\<id>\                  dữ liệu Zalo của từng tài khoản
   profiles\<id>\avatar.png        ảnh đại diện bạn chọn (96×96)
 ```
+
+Khi mở lần đầu, dữ liệu của bản cũ trong `%LOCALAPPDATA%\MultiZ`, `MultiZalo` hoặc `Zaloo` được chuyển sang `%LOCALAPPDATA%\Betacom`; mục khởi động cùng Windows tên `MultiZ` hoặc `Zaloo` được thay bằng `Betacom`. Thoát bản cũ trước khi mở bản mới.
 
 ## Cấu trúc mã nguồn
 
@@ -52,7 +50,7 @@ MultiZ miễn phí và không quảng cáo. Nếu thấy hữu ích, bạn có t
 |---|---|
 | `src/main.rs` | Trạng thái app, vòng lặp thông điệp, xử lý cửa sổ chính |
 | `src/session.rs` | Chạy Zalo.exe với thư mục dữ liệu riêng (Job Object), tìm cửa sổ Zalo |
-| `src/embed.rs` | Nhúng / gắn kèm cửa sổ Zalo vào MultiZ |
+| `src/embed.rs` | Nhúng / gắn kèm cửa sổ Zalo vào Betacom |
 | `src/ui.rs` | Vẽ giao diện (GDI+ / GDI) |
 | `src/actions.rs` | Menu, hộp thoại, các thao tác của người dùng |
 | `src/watcher.rs` | Phát hiện tin mới qua UI Automation (luồng riêng) |
@@ -68,8 +66,8 @@ Cần Rust (stable). Toolchain MSVC dùng `rc.exe` của Windows SDK (tự tìm,
 cargo build --release
 ```
 
-File chạy nằm ở `windows\target\release\multiz.exe`. Biên dịch chéo từ Linux: target `x86_64-pc-windows-gnu` + mingw-w64.
+File chạy nằm ở `windows\target\release\betacom.exe`. Biên dịch chéo từ Linux: target `x86_64-pc-windows-gnu` + mingw-w64.
 
 ## Giấy phép
 
-MIT — Copyright (c) 2026 Sudo Software. Xem [LICENSE](../LICENSE).
+MIT — Copyright (c) 2026 Betacom. Xem [LICENSE](../LICENSE).

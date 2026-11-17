@@ -83,21 +83,6 @@ impl App {
         wd
     }
 
-    /// Biểu tượng ly cà phê vẽ tay (không phụ thuộc font emoji của máy).
-    pub(crate) fn draw_cup(&self, cv: &mut Canvas, x: i32, y: i32, size: i32, color: u32) {
-        let u = size as f32 / 16.0;
-        let p = |v: f32| (v * u).round() as i32;
-        // quai
-        cv.stroke_round(x + p(8.5), y + p(5.5), p(6.0), p(6.0), p(3.0), color, (1.6 * u).max(1.0));
-        // thân cốc
-        cv.fill_round(x + p(1.0), y + p(4.0), p(10.5), p(9.0), p(2.5), color);
-        // đĩa
-        cv.fill_round(x, y + p(14.0), p(13.5), p(2.0), p(1.0), color);
-        // khói
-        cv.fill_round(x + p(3.5), y, p(1.6), p(3.0), p(1.0), color);
-        cv.fill_round(x + p(7.0), y, p(1.6), p(3.0), p(1.0), color);
-    }
-
     /// Ảnh đại diện: ảnh người dùng chọn, nếu không có thì chữ viết tắt trên nền màu.
     pub(crate) fn draw_avatar(&self, cv: &mut Canvas, a: &Account, x: i32, y: i32, d: i32, off: bool) {
         if let Some(img) = self.avatars.get(&a.id) {
@@ -180,7 +165,7 @@ impl App {
         let n = self.cfg.accounts.len();
         let item_h = self.s(56);
         let list_top = self.s(90);
-        let list_bottom = cr.bottom - self.s(118);
+        let list_bottom = cr.bottom - self.s(70);
         self.list_rect = rc(0, list_top, sw, list_bottom);
         let cap = (((list_bottom - list_top) / item_h).max(1)) as usize;
         if self.scroll + cap > n {
@@ -250,16 +235,8 @@ impl App {
                 DT_SINGLELINE | DT_VCENTER | DT_CENTER,
             );
         }
-        // nút cà phê + nút thêm tài khoản (hình tròn)
         let d = self.s(40);
         let (bx, by) = ((sw - d) / 2, cr.bottom - self.s(60));
-        let cy = by - d - self.s(8);
-        let cafe_hov = self.hover == Hit::Btn(Act::Coffee);
-        cv.fill_circle(bx, cy, d, if cafe_hov { 0xFFEDD5 } else { 0xFFF7ED });
-        cv.stroke_round(bx, cy, d, d, d / 2, 0xFED7AA, 1.0);
-        let cup = self.s(18);
-        self.draw_cup(cv, bx + (d - cup) / 2 + self.s(1), cy + (d - cup) / 2, cup, 0x9A3412);
-        self.hits.push((rc(bx, cy, bx + d, cy + d), Hit::Btn(Act::Coffee)));
         let hov = self.hover == Hit::Btn(Act::AddAcc);
         cv.fill_circle(bx, by, d, if hov { C_HOVER } else { 0xFFFFFF });
         cv.stroke_round(bx, by, d, d, d / 2, C_BORDER, 1.0);
@@ -322,15 +299,12 @@ impl App {
             DT_SINGLELINE | DT_VCENTER,
         );
 
-        // phần đáy: chân trang, nút thêm tài khoản, nút cà phê
         let b = cr.bottom;
         let foot1 = rc(0, b - self.s(46), sw, b - self.s(28));
         let foot2 = rc(0, b - self.s(27), sw, b - self.s(8));
         let add_h = self.s(40);
         let add_y = b - self.s(98);
-        let cafe_h = self.s(34);
-        let cafe_y = add_y - self.s(8) - cafe_h;
-        let list_bottom = cafe_y - self.s(10);
+        let list_bottom = add_y - self.s(10);
 
         // ---- danh sách tài khoản (có cuộn) ----
         let item_h = self.s(56);
@@ -436,24 +410,6 @@ impl App {
                 C_MUTED,
                 DT_SINGLELINE | DT_VCENTER | DT_CENTER,
             );
-        }
-
-        // nút mời cà phê (mở trang ủng hộ trên trình duyệt)
-        {
-            let x = self.s(14);
-            let wd = sw - self.s(28);
-            let hov = self.hover == Hit::Btn(Act::Coffee);
-            cv.fill_round(x, cafe_y, wd, cafe_h, self.s(10), if hov { 0xFFEDD5 } else { 0xFFF7ED });
-            cv.stroke_round(x, cafe_y, wd, cafe_h, self.s(10), 0xFED7AA, 1.0);
-            let label = "Mời MultiZ ly cà phê";
-            let cup = self.s(16);
-            let gap = self.s(8);
-            let tw = text_width(cv.hdc, label, self.fonts.btn);
-            let start = x + (wd - (cup + gap + tw)) / 2;
-            self.draw_cup(cv, start, cafe_y + (cafe_h - cup) / 2, cup, 0x9A3412);
-            let text_rc = rc(start + cup + gap, cafe_y, x + wd, cafe_y + cafe_h);
-            cv.text(text_rc, label, self.fonts.btn, 0x9A3412, DT_SINGLELINE | DT_VCENTER);
-            self.hits.push((rc(x, cafe_y, x + wd, cafe_y + cafe_h), Hit::Btn(Act::Coffee)));
         }
 
         // nút thêm tài khoản + chân trang

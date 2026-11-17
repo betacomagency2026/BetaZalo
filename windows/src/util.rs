@@ -20,18 +20,15 @@ pub fn from_w(buf: &[u16]) -> String {
 
 static ROOT: OnceLock<PathBuf> = OnceLock::new();
 
-/// Thư mục dữ liệu của ứng dụng: %LOCALAPPDATA%\MultiZ
 pub fn data_root() -> &'static PathBuf {
     ROOT.get_or_init(|| {
         let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
-        let p = base.join("MultiZ");
-        // Chuyển dữ liệu từ các tên cũ (Zaloo, MultiZalo) để giữ nguyên tài khoản đã đăng nhập
+        let p = base.join("Betacom");
         if !p.exists() {
-            for old_name in ["Zaloo", "MultiZalo"] {
+            for old_name in ["MultiZ", "MultiZalo", "Zaloo"] {
                 let old = base.join(old_name);
                 if old.is_dir() {
                     if std::fs::rename(&old, &p).is_err() {
-                        // đang bị khóa (Zalo của bản cũ còn chạy): dùng tạm thư mục cũ
                         return old;
                     }
                     break;
