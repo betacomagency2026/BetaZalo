@@ -2,8 +2,8 @@ import AppKit
 import Darwin
 
 final class ZaloLauncher {
-    private static let forceAfter: TimeInterval = 5
-    private static let giveUpAfter: TimeInterval = 7
+    private static let forceAfter: TimeInterval = 8
+    static let giveUpAfter: TimeInterval = 10
     private static let automationDenied = -1743
 
     private var pids: [String: pid_t] = [:]
@@ -78,7 +78,8 @@ final class ZaloLauncher {
     }
 
     func restore() {
-        guard let exe = zaloApp().flatMap({ Bundle(url: $0)?.executableURL?.resolvingSymlinksInPath() }) else { return }
+        let zalo = zaloApp().flatMap { Bundle(url: $0) }
+        let exe = zalo?.executableURL?.resolvingSymlinksInPath()
         for account in store.accounts {
             let file = pidFile(account.id)
             guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
@@ -89,10 +90,17 @@ final class ZaloLauncher {
             }
             let saved = parts.count > 1 ? UInt64(parts[1]) : nil
             let actual = Self.startTime(pid)
-            let app = NSRunningApplication(processIdentifier: pid)
-            let sameExe = app?.executableURL?.resolvingSymlinksInPath() == exe
-            let sameStart = saved == nil || (actual != nil && actual == saved)
-            guard actual != nil, sameExe, sameStart else {
+            let verified: Bool
+            if let saved = saved {
+                verified = actual == saved
+            } else if actual != nil, let app = NSRunningApplication(processIdentifier: pid) {
+                let sameExe = exe != nil && app.executableURL?.resolvingSymlinksInPath() == exe
+                let sameBundle = zalo?.bundleIdentifier != nil && app.bundleIdentifier == zalo?.bundleIdentifier
+                verified = sameExe || sameBundle
+            } else {
+                verified = false
+            }
+            guard verified else {
                 try? FileManager.default.removeItem(at: file)
                 writeLog("Bỏ file pid cũ của \(account.id) (pid \(pid) không còn là phiên Zalo này)")
                 continue
@@ -183,6 +191,8 @@ final class ZaloLauncher {
             app.terminate()
         } else if let process = processes[id], process.isRunning {
             process.terminate()
+        } else {
+            kill(pid, SIGTERM)
         }
         poll(id, pid: pid, since: Date(), forced: false)
     }

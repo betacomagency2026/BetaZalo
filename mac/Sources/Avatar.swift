@@ -31,7 +31,7 @@ enum Avatar {
 
     static func image(for account: Account, running: Bool, size: CGFloat = 20) -> NSImage {
         let photo = custom(account.id)
-        let colors = palette[account.color % palette.count]
+        let colors = palette[((account.color % palette.count) + palette.count) % palette.count]
         let text = initials(account.name)
 
         return NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in

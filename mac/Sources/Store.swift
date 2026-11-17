@@ -28,8 +28,15 @@ final class Store {
     let root: URL
     private(set) var accounts: [Account] = []
     private(set) var readOnly = false
+    private var loading = false
     var zaloPath: String? {
-        didSet { save() }
+        didSet { if !loading { save() } }
+    }
+
+    static func isSafeID(_ id: String) -> Bool {
+        !id.isEmpty && id.utf8.allSatisfy { c in
+            (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 95 || c == 45
+        }
     }
 
     private struct ConfigFile: Codable {
@@ -71,17 +78,39 @@ final class Store {
         }
         do {
             let file = try JSONDecoder().decode(ConfigFile.self, from: data)
-            accounts = file.accounts
-            zaloPath = file.zaloPath
-        } catch {
-            let backup = root.appendingPathComponent("config.broken-\(fileStamp()).json")
-            do {
-                try fm.copyItem(at: configURL, to: backup)
-                writeLog("config.json lỗi, đã sao lưu sang \(backup.lastPathComponent) và bắt đầu với cấu hình trống: \(error)")
-            } catch let copyError {
-                readOnly = true
-                writeLog("config.json lỗi và không sao lưu được (\(copyError)), tạm không ghi cấu hình: \(error)")
+            var seen = Set<String>()
+            let valid = file.accounts.filter { Store.isSafeID($0.id) && seen.insert($0.id).inserted }
+            if valid.count != file.accounts.count {
+                let dropped = file.accounts.count - valid.count
+                if backupConfig() {
+                    writeLog("Bỏ \(dropped) tài khoản có id không hợp lệ hoặc trùng trong config.json")
+                } else {
+                    readOnly = true
+                }
             }
+            loading = true
+            accounts = valid
+            zaloPath = file.zaloPath
+            loading = false
+        } catch {
+            if backupConfig() {
+                writeLog("config.json lỗi, bắt đầu với cấu hình trống: \(error)")
+            } else {
+                readOnly = true
+                writeLog("config.json lỗi, tạm không ghi cấu hình: \(error)")
+            }
+        }
+    }
+
+    private func backupConfig() -> Bool {
+        let backup = root.appendingPathComponent("config.broken-\(fileStamp()).json")
+        do {
+            try FileManager.default.copyItem(at: configURL, to: backup)
+            writeLog("Đã sao lưu config.json sang \(backup.lastPathComponent)")
+            return true
+        } catch {
+            writeLog("Không sao lưu được config.json: \(error)")
+            return false
         }
     }
 
@@ -133,6 +162,10 @@ final class Store {
     }
 
     func trashProfile(_ id: String) -> Bool {
+        guard Store.isSafeID(id), account(id) == nil else {
+            writeLog("Không dọn profile của id \"\(id)\": id không hợp lệ hoặc vẫn đang dùng")
+            return false
+        }
         let profile = profileURL(id)
         guard FileManager.default.fileExists(atPath: profile.path) else { return true }
         do {

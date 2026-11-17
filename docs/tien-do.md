@@ -28,11 +28,15 @@ Plan `plans/20261117-pending-bug-fixes`: xong mã 5 phase. Windows build, clippy
 - Windows phase 3: không báo trùng tin khi nhấp nháy taskbar; cộng dồn delta cuộn chuột; SetParent lỗi thì chuyển cửa sổ đó sang gắn kèm; thông báo lỗi CreateProcessW dễ hiểu; sửa câu `SHA256SUMS.txt` trong PRIVACY; gỡ comment.
 - macOS phase 4: file pid kèm thời điểm khởi động tiến trình; giữ `Process` và `terminationHandler`; chỉ gửi tín hiệu cho tiến trình đã xác minh; xóa tài khoản chỉ dọn profile sau khi Zalo thoát; "Tắt Zalo và thoát" chờ qua `applicationShouldTerminate`.
 - macOS phase 5: không ghi LaunchAgent khi chạy từ App Translocation, thêm `AbandonProcessGroup`; mở lại tài khoản cách 1,5 giây; tạo lại symlink Keychain sai; chặn chạy hai bản; sao lưu config hỏng theo thời điểm, chế độ không lưu, giữ `log.old.txt`; báo thiếu quyền Automation; `build.sh` không nuốt lỗi arm64 và lỗi ký; gỡ comment.
+- Rà soát lần hai (hai reviewer độc lập), sửa 16 lỗi:
+  - Windows: tài khoản không nhúng được xử lý theo chế độ gắn kèm (di chuyển, focus, Zalo tự hiện cửa sổ); nút khởi động cùng Windows đọc và xóa trạng thái tắt trong Task Manager; hoãn hộp báo lỗi xóa dữ liệu khi hộp thoại tài khoản đang mở; dọn `.trash-*` không báo lỗi giả khi thư mục đã mất; lưu lựa chọn khi đăng xuất hoặc tắt máy; chỉ chặn khi MultiZ chạy nếu còn dữ liệu cần chuyển.
+  - macOS: nhận lại phiên chỉ dựa vào PID và thời điểm khởi động (không phụ thuộc đường dẫn Zalo.app); kiểm tra id tài khoản, chặn dọn profile với id sai hoặc đang dùng; ghi LaunchAgent mới trước khi gỡ cái cũ, chỉ ghi khi nội dung đổi, báo khi tắt thất bại; không ghi lại config mỗi lần khởi động; gửi SIGTERM cho phiên đã xác minh khi không có `NSRunningApplication`; buộc tắt sau 8 giây, bỏ chờ sau 10 giây; chặn crash khi màu âm; bản mở lại trong lúc bản cũ đang thoát thì chờ bản cũ thoát hẳn.
 
 ## Việc tiếp theo
 
-- Biên dịch bản macOS bằng `bash build.sh` trên macOS (chưa từng biên dịch sau đổi tên và sau sửa M1–M9), sửa lỗi biên dịch nếu có, rồi thử: mở/tắt, thoát Betacom rồi mở lại (nhận lại phiên), xóa tài khoản đang chạy, "Tắt Zalo và thoát", mở hai bản, chạy từ thư mục Downloads (App Translocation), từ chối quyền Automation.
-- Kiểm thử tay bản Windows sau plan sửa lỗi: mở khi MultiZ cũ đang chạy, xóa tài khoản đang chạy, thông báo khi Zalo nhấp nháy taskbar, cuộn bằng touchpad.
+- Biên dịch bản macOS bằng `bash build.sh` trên macOS (chưa từng biên dịch sau đổi tên và sau sửa M1–M9), sửa lỗi biên dịch nếu có, rồi thử: mở/tắt, thoát Betacom rồi mở lại (nhận lại phiên), xóa tài khoản đang chạy, "Tắt Zalo và thoát", mở hai bản, chạy từ thư mục Downloads (App Translocation), từ chối quyền Automation, đổi vị trí Zalo.app rồi mở lại Betacom, thoát rồi mở lại ngay trong lúc đang tắt Zalo.
+- Kiểm thử tay bản Windows sau plan sửa lỗi: mở khi MultiZ cũ đang chạy, xóa tài khoản đang chạy, thông báo khi Zalo nhấp nháy taskbar, cuộn bằng touchpad, bật lại khởi động cùng Windows sau khi tắt trong Task Manager.
+- Chưa rõ mutex và class cửa sổ của bản Zaloo, MultiZalo cũ (không có trong lịch sử repo) nên chưa chặn khi chúng đang chạy.
 
 - Kiểm thử tay việc đổi tên: thoát bản MultiZ, mở `betacom.exe`; dữ liệu `%LOCALAPPDATA%\MultiZ` chuyển sang `Betacom`, tài khoản giữ đăng nhập, thanh bên không còn nút cà phê.
 - Cung cấp website chính thức của Betacom nếu có, thay liên kết GitHub ở "Trang chủ Betacom".

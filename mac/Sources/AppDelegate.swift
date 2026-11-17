@@ -275,11 +275,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func toggleLogin() {
-        if !LoginItem.setEnabled(!LoginItem.isEnabled) {
+        let enable = !LoginItem.isEnabled
+        guard !LoginItem.setEnabled(enable) else { return }
+        let logPath = store.root.appendingPathComponent("log.txt").path
+        if !enable {
+            Prompt.info("Chưa tắt được", "Không xóa được LaunchAgent của Betacom. Chi tiết trong \(logPath).")
+        } else if LoginItem.isTranslocated {
             Prompt.info(
                 "Chưa bật được",
-                "Betacom đang chạy từ vị trí tạm của macOS (App Translocation) hoặc không ghi được LaunchAgent. Hãy chuyển Betacom.app vào thư mục Applications, mở lại rồi bật lại mục này."
+                "Betacom đang chạy từ vị trí tạm của macOS (App Translocation). Hãy chuyển Betacom.app vào thư mục Applications, mở lại rồi bật lại mục này."
             )
+        } else {
+            Prompt.info("Chưa bật được", "Không ghi được LaunchAgent của Betacom. Chi tiết trong \(logPath).")
         }
     }
 
@@ -376,8 +383,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             replied = true
             NSApp.reply(toApplicationShouldTerminate: true)
         }
+        try? String(ProcessInfo.processInfo.processIdentifier).write(to: AppDelegate.quittingMarker, atomically: true, encoding: .utf8)
         launcher.stopAll(rememberForNextLaunch: true, completion: reply)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: reply)
+        DispatchQueue.main.asyncAfter(deadline: .now() + ZaloLauncher.giveUpAfter + 1, execute: reply)
         return .terminateLater
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        try? FileManager.default.removeItem(at: AppDelegate.quittingMarker)
+    }
+
+    static var quittingMarker: URL {
+        Store.rootURL.appendingPathComponent("quitting.pid")
     }
 }
