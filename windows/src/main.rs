@@ -57,6 +57,7 @@ const HSHELL_FLASH_X: usize = 0x8006;
 const NOTIFY_COOLDOWN: Duration = Duration::from_secs(8);
 /// thông điệp nội bộ: trao quyền bàn phím cho cửa sổ Zalo đang chọn
 const WM_APP_FOCUS: u32 = 0x8000 + 20;
+const WM_APP_RELAYOUT: u32 = 0x8000 + 21;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Act {
@@ -120,6 +121,7 @@ thread_local! {
     static APP: RefCell<Option<App>> = const { RefCell::new(None) };
     static SHELL_MSG: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     static TASKBAR_MSG: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    static RELAYOUT_PENDING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 /// Mượn App an toàn: nếu đang được mượn (gọi lồng), trả về None thay vì panic.
@@ -275,7 +277,7 @@ impl App {
         if self.sessions.contains_key(id) {
             return;
         }
-        if self.zalo.is_none() {
+        if !self.zalo.as_ref().is_some_and(|p| p.is_file()) {
             self.zalo = session::find_zalo(self.cfg.zalo_path.as_deref());
         }
         let Some(exe) = self.zalo.clone() else {
@@ -309,10 +311,23 @@ impl App {
             log(&format!("Đã tắt phiên {id}"));
         }
         self.failed.remove(id);
-        self.has_new.remove(id);
-        self.pending.remove(id);
+        self.clear_unseen(id);
         self.update_tray_tip();
         self.invalidate();
+    }
+
+    fn clear_unseen(&mut self, id: &str) {
+        self.has_new.remove(id);
+        self.pending.remove(id);
+        self.flash_pending.remove(id);
+    }
+
+    fn apply_dpi(&mut self, dpi: u32) {
+        if self.dpi != dpi {
+            self.dpi = dpi;
+            self.fonts.free();
+            self.fonts = Fonts::new(self.sc());
+        }
     }
 
     fn reattach(&mut self, id: &str) {
@@ -475,6 +490,7 @@ impl App {
         }
         self.place_all();
         self.invalidate();
+        unsafe { PostMessageW(self.hwnd, WM_APP_FOCUS, 0, 0) };
     }
 
     fn tick(&mut self) {
@@ -513,7 +529,7 @@ impl App {
                         adopt(s, &wi, embed, pane, main, is_sel);
                     }
                 } else if is_sel {
-                    if IsWindowVisible(s.hwnd) == 0 && IsWindowVisible(main) != 0 {
+                    if IsWindowVisible(s.hwnd) == 0 && IsWindowVisible(main) != 0 && IsIconic(main) == 0 {
                         s.hidden_ticks += 1;
                         if let Some(wi) = session::best_window(&pids, false, s.hwnd) {
                             log(&format!("{id}: cửa sổ chính bị ẩn, chuyển sang cửa sổ mới '{}'", wi.title));
@@ -563,6 +579,7 @@ impl App {
             if let Some(s) = self.sessions.remove(&id) {
                 unsafe { CloseHandle(s.job) };
             }
+            self.clear_unseen(&id);
             if let Some(w) = why {
                 self.failed.insert(id, w);
             }
@@ -668,6 +685,12 @@ impl App {
     }
 }
 
+fn defer_layout(hwnd: HWND) {
+    if !RELAYOUT_PENDING.with(|c| c.replace(true)) {
+        unsafe { PostMessageW(hwnd, WM_APP_RELAYOUT, 0, 0) };
+    }
+}
+
 fn request_focus() {
     let h = hwnd_main();
     if !h.is_null() {
@@ -736,15 +759,41 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
             0
         }
         WM_SIZE => {
-            with_app(|a| a.layout());
+            if wp as u32 != SIZE_MINIMIZED && with_app(|a| a.layout()).is_none() {
+                defer_layout(hwnd);
+            }
             0
         }
         WM_MOVE | WM_WINDOWPOSCHANGED => {
-            with_app(|a| {
+            let done = with_app(|a| {
                 if !a.cfg.embed {
                     a.place_all();
                 }
             });
+            if done.is_none() {
+                defer_layout(hwnd);
+            }
+            DefWindowProcW(hwnd, msg, wp, lp)
+        }
+        WM_APP_RELAYOUT => {
+            RELAYOUT_PENDING.with(|c| c.set(false));
+            if IsIconic(hwnd) == 0 {
+                let dpi = GetDpiForWindow(hwnd).max(96);
+                if with_app(|a| {
+                    a.apply_dpi(dpi);
+                    a.layout();
+                })
+                .is_none()
+                {
+                    defer_layout(hwnd);
+                }
+            }
+            0
+        }
+        WM_SHOWWINDOW => {
+            if wp != 0 {
+                with_app(|a| a.hidden_to_tray = false);
+            }
             DefWindowProcW(hwnd, msg, wp, lp)
         }
         WM_GETMINMAXINFO => {
@@ -756,11 +805,9 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM
         }
         WM_DPICHANGED => {
             let r = &*(lp as *const RECT);
-            with_app(|a| {
-                a.dpi = (wp & 0xFFFF) as u32;
-                a.fonts.free();
-                a.fonts = Fonts::new(a.sc());
-            });
+            if with_app(|a| a.apply_dpi((wp & 0xFFFF) as u32)).is_none() {
+                defer_layout(hwnd);
+            }
             SetWindowPos(
                 hwnd,
                 null_mut(),

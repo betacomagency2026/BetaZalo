@@ -160,7 +160,13 @@ pub fn start(exe: &Path, profile: &Path) -> Result<Session, String> {
             return Err(format!("Không mở được Zalo.exe (mã lỗi {err})"));
         }
         if AssignProcessToJobObject(job, pi.hProcess) == 0 {
-            log(&format!("AssignProcessToJobObject lỗi {}", GetLastError()));
+            let err = GetLastError();
+            log(&format!("AssignProcessToJobObject lỗi {err}"));
+            TerminateProcess(pi.hProcess, 1);
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+            CloseHandle(job);
+            return Err(format!("Không quản lý được tiến trình Zalo (mã lỗi {err})"));
         }
         ResumeThread(pi.hThread);
         CloseHandle(pi.hThread);
