@@ -1,6 +1,6 @@
 # Gia cố bản Windows
 
-Trạng thái: đang thực thi · Bắt đầu: 2026-11-17
+Trạng thái: xong phần mã, chờ kiểm thử tay trên máy có Zalo · Bắt đầu: 2026-11-17
 
 Mục tiêu: sửa các lỗi đã xác nhận qua audit (rò tài nguyên, mất dữ liệu, gọi lồng làm hỏng giao diện, treo UI), giảm chi phí theo dõi tin mới; giữ nguyên các điểm mạnh: một file exe nhỏ, không kết nối mạng, không sửa Zalo, dữ liệu tách theo tài khoản.
 
@@ -11,11 +11,11 @@ Nguồn: [audit độ đúng](reports/audit-windows-correctness.md), [audit hi�
 | # | Phase | Mục audit | Trạng thái |
 |---|---|---|---|
 | 1 | [Build và lint](phase-01-build-and-lint.md) | build.rs, clippy | xong (87bad24) |
-| 2 | [Rò tài nguyên và an toàn dữ liệu](phase-02-resources-and-data-safety.md) | H1, H2/W3, M1, M8, L6, L7 | chờ |
-| 3 | [Gọi lồng và trạng thái cửa sổ](phase-03-reentrancy-and-window-state.md) | H3, L2, M3, M4, M5, M6 (một phần), L4 | chờ |
-| 4 | [Tắt phiên không chặn UI](phase-04-non-blocking-stop.md) | W2, W5, L5 | chờ |
-| 5 | [Watcher và riêng tư log](phase-05-watcher-and-log-privacy.md) | W4 (một phần), L8 | chờ |
-| 6 | [Sửa nhỏ giao diện](phase-06-small-ui-fixes.md) | L3, L9 | chờ |
+| 2 | [Rò tài nguyên và an toàn dữ liệu](phase-02-resources-and-data-safety.md) | H1, H2/W3, M1, M8, L6, L7 | xong (f1bc571) |
+| 3 | [Gọi lồng và trạng thái cửa sổ](phase-03-reentrancy-and-window-state.md) | H3, L2, M3, M4, M5, M6 (một phần), L4 | xong (4806b46) |
+| 4 | [Tắt phiên không chặn UI](phase-04-non-blocking-stop.md) | W2, W5, L5 | xong (72c66a4) |
+| 5 | [Watcher và riêng tư log](phase-05-watcher-and-log-privacy.md) | W4 (một phần), L8 | xong (9c2d4f7) |
+| 6 | [Sửa nhỏ giao diện](phase-06-small-ui-fixes.md) | L3, L9 | xong (f0eaea3) |
 
 Thứ tự: 1 → 2 → 3 → 4 → 5 → 6. Phase 4 phụ thuộc phase 2 (thứ tự xóa tài khoản) và phase 3 (`stop`, `tick`).
 

@@ -53,7 +53,9 @@ Số phiên bản nằm ở: `windows/Cargo.toml`; `windows/res/app.rc` (FILEVER
 
 **Tách tài khoản** (`session.rs`): `CreateProcessW` chạy Zalo.exe ở trạng thái suspended, khối môi trường ghi đè `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `TEMP`, `TMP`, `HOMEDRIVE`, `HOMEPATH` trỏ vào `%LOCALAPPDATA%\MultiZ\profiles\<id>`; tiến trình được gán vào Job Object (`KILL_ON_JOB_CLOSE`) rồi resume. PID của phiên luôn lấy từ Job Object (`Session::pids`) vì Zalo (Electron) sinh nhiều tiến trình con; job rỗng nghĩa là phiên đã thoát. Cửa sổ chính chọn bằng `best_window`: ưu tiên đang hiện, class `Chrome_WidgetWin_1`, diện tích lớn nhất.
 
-**Trạng thái và gọi lồng**: toàn bộ trạng thái nằm trong một `App` ở `thread_local!` `RefCell` (`main.rs`), chỉ truy cập qua `with_app`; hàm này trả `None` thay vì panic khi đang mượn lồng. Hộp thoại, `TrackPopupMenu`, `MessageBoxW` chạy vòng lặp thông điệp riêng nên window procedure bị gọi lồng. Các hàm trong `actions.rs` vì vậy chỉ mượn `App` trong phạm vi ngắn và không giữ mượn khi mở hộp thoại; thao tác mới phải theo cùng mẫu.
+**Trạng thái và gọi lồng**: toàn bộ trạng thái nằm trong một `App` ở `thread_local!` `RefCell` (`main.rs`), chỉ truy cập qua `with_app`; hàm này trả `None` thay vì panic khi đang mượn lồng. Hộp thoại, `TrackPopupMenu`, `MessageBoxW` chạy vòng lặp thông điệp riêng nên window procedure bị gọi lồng. Các hàm trong `actions.rs` vì vậy chỉ mượn `App` trong phạm vi ngắn và không giữ mượn khi mở hộp thoại; thao tác mới phải theo cùng mẫu. Thông điệp bố cục (`WM_SIZE`, `WM_MOVE`, `WM_DPICHANGED`) đến khi `App` đang bị mượn thì được hoãn qua `defer_layout` (`WM_APP_RELAYOUT`).
+
+**Tắt phiên**: `App::stop`/`restart` gọi `TerminateJobObject` rồi chuyển job vào `stopping`, không chờ trên luồng UI; `tick` (`reap_stopping`) đóng handle khi job rỗng, mở lại nếu cần; quá `STOP_TIMEOUT` (10 giây) thì báo lỗi, không mở lại. `start` khi id đang trong `stopping` chỉ đặt cờ mở lại. Cửa sổ đứng hình (`IsHungAppWindow`) bị bỏ qua khi đặt vị trí và trao focus.
 
 **Vòng `App::tick`** (timer 400 ms): phát hiện phiên đã thoát; gắn cửa sổ mới tìm được (`adopt`); giữ vị trí cửa sổ; đọc số chưa đọc từ tiêu đề dạng `(3) Zalo`; gửi thông báo đang chờ (gom tin trong `NOTIFY_COOLDOWN` 8 giây); chuyển danh sách cửa sổ cho watcher; mở lần lượt các tài khoản `autostart` cách nhau 1,5 giây; chỉ vẽ lại khi chuỗi chữ ký trạng thái thay đổi.
 
@@ -71,11 +73,11 @@ Số phiên bản nằm ở: `windows/Cargo.toml`; `windows/res/app.rc` (FILEVER
 
 **Vẽ giao diện** (`ui.rs`, `gfx.rs`): tự vẽ hoàn toàn, double buffer. `Canvas` vẽ hình bằng GDI+ ngay; chữ được hoãn tới `finish()` và vẽ bằng GDI (ClearType) đè lên. Vùng bấm (`hits`, `pane_hits`) được dựng lại trong mỗi lần vẽ và tra bằng `hit_at`, nên nút mới phải được đẩy vào danh sách này khi vẽ. Kích thước theo DPI qua `App::s`.
 
-**Thông điệp tự định nghĩa**: `WM_APP+10` khay hệ thống (`tray.rs`), `WM_APP+11` watcher, `WM_APP+20` trao focus.
+**Thông điệp tự định nghĩa**: `WM_APP+10` khay hệ thống (`tray.rs`), `WM_APP+11` watcher, `WM_APP+20` trao focus, `WM_APP+21` bố cục bị hoãn.
 
 **Tổ chức module**: `actions`, `embed`, `tooltip`, `ui` dùng `use super::*` và truy cập trực tiếp trường của `App`; các module còn lại độc lập, import qua `crate::`. Crate `windows` chỉ dùng cho COM/UI Automation trong `watcher.rs`; phần còn lại dùng `windows-sys`.
 
-**Dữ liệu và tương thích ngược**: `config.json` dùng serde, mọi trường có giá trị mặc định; lưu nguyên tử (ghi `.tmp` rồi đổi tên); file hỏng được sao sang `config.broken.json`. `util::data_root` đổi tên thư mục cũ `Zaloo`/`MultiZalo` thành `MultiZ`; `migrate_autorun` chuyển khóa Run `Zaloo` sang `MultiZ`. Chỉ một bản chạy cùng lúc (mutex `Local\SudoSoftware.MultiZ.SingleInstance`); tham số `--tray` khởi động ẩn dưới khay.
+**Dữ liệu và tương thích ngược**: `config.json` dùng serde, mọi trường có giá trị mặc định; lưu nguyên tử (ghi `.tmp`, `sync_all`, rồi đổi tên); file hỏng được sao sang `config.broken-<thời điểm>.json`; không đọc được file (khác lỗi không tồn tại) hoặc không sao lưu được thì `read_only` và `save()` không ghi. Xóa tài khoản chỉ xóa thư mục khi id hợp lệ (`util::is_safe_id`) và không trùng. `util::data_root` đổi tên thư mục cũ `Zaloo`/`MultiZalo` thành `MultiZ`; `migrate_autorun` chuyển khóa Run `Zaloo` sang `MultiZ`. Chỉ một bản chạy cùng lúc (mutex `Local\SudoSoftware.MultiZ.SingleInstance`); tham số `--tray` khởi động ẩn dưới khay.
 
 ## Kiến trúc macOS
 
