@@ -41,7 +41,10 @@ fn cached_icon(
 
 fn copy(dst: &mut [u16], s: &str) {
     let v: Vec<u16> = s.encode_utf16().collect();
-    let n = v.len().min(dst.len() - 1);
+    let mut n = v.len().min(dst.len() - 1);
+    if n < v.len() && n > 0 && (0xD800..0xDC00).contains(&v[n - 1]) {
+        n -= 1;
+    }
     dst[..n].copy_from_slice(&v[..n]);
     dst[n] = 0;
 }

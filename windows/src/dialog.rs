@@ -314,11 +314,14 @@ pub fn account_dialog(owner: HWND, heading: &str, name: &str, color: usize, ok_l
                 PostQuitMessage(0);
                 break;
             }
-            if msg.message == WM_KEYDOWN && msg.wParam == VK_RETURN as usize {
+            let cancel_focused = GetDlgCtrlID(GetFocus()) == ID_CANCEL;
+            if msg.message == WM_KEYDOWN && msg.wParam == VK_RETURN as usize && !cancel_focused {
                 do_ok(dlg);
                 continue;
             }
-            if msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE as usize {
+            if msg.message == WM_KEYDOWN
+                && (msg.wParam == VK_ESCAPE as usize || (msg.wParam == VK_RETURN as usize && cancel_focused))
+            {
                 DLG.with(|d| {
                     if let Some(d) = d.borrow_mut().as_mut() {
                         d.done = true;
