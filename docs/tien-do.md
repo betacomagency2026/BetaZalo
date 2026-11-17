@@ -32,3 +32,13 @@ Plan `plans/20261117-windows-hardening`: xong mã cả 6 phase; build, clippy, f
 - Lập plan riêng cho bản macOS (cần máy macOS) dựa trên `reports/audit-performance-mac.md`.
 - Thống nhất hành vi xóa tài khoản giữa hai bản (Windows xóa hẳn, macOS chuyển vào Thùng rác).
 - Đánh giá độ bền của `watcher.rs` trước thay đổi bố cục giao diện Zalo.
+- Lỗi mới (rà soát sau đổi tên), theo mức độ:
+  - Trung bình: mutex mới không chặn bản MultiZ cũ đang chạy; hai bản cùng ghi `config.json` hoặc chuyển thư mục thất bại (`main.rs` mutex, `util::data_root`). Cần kiểm tra mutex `Local\SudoSoftware.MultiZ.SingleInstance` hoặc class `MultiZMain`, yêu cầu thoát bản cũ; ghi log khi bỏ qua chuyển dữ liệu.
+  - Trung bình: `delete_account` chờ thoát, ngủ và `remove_dir_all` trên luồng UI, cập nhật config sau cùng; cần xóa khỏi config trước, đổi tên thư mục sang `.trash-<id>`, xóa ở luồng phụ, dọn khi khởi động.
+  - Thấp: `migrate_autorun` bật lại mục khởi động đã tắt trong Task Manager (`StartupApproved\Run`).
+  - Thấp: chế độ `read_only` không báo người dùng; xóa tài khoản vẫn xóa thư mục dù không lưu được config.
+  - Thấp: `select()` gọi `save()` có `sync_all` mỗi lần bấm tài khoản.
+  - Thấp: `UPDATE_URL` trỏ tới trang releases còn trống; `windows/PRIVACY.md` hứa `SHA256SUMS.txt` nhưng chưa có quy trình phát hành.
+  - Thấp: còn khoảng 96 dòng comment kế thừa trong `windows/src`, trái ràng buộc không comment.
+- Kiểm chứng khi thử tay: Zalo có lưu đường dẫn tuyệt đối (thư mục tải, tệp cục bộ) trong profile không; nếu có, tệp cũ mất sau khi đổi `MultiZ` thành `Betacom`.
+- Hướng phát triển: CI GitHub Actions (build, clippy, fmt) và phát hành `betacom.exe` kèm `SHA256SUMS.txt`; phím tắt Ctrl+1..9, nhớ vị trí cửa sổ, toast kích hoạt đúng tài khoản (W7, W10); plan macOS M1–M9.
